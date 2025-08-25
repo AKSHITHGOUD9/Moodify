@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluid Portfolio Design</title>
+    <link rel="stylesheet" href="fluid-styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Fluid Background Animation -->
+        <div class="fluid-background">
+            <canvas id="fluidCanvas" class="fluid-canvas"></canvas>
+            <div class="fluid-overlay"></div>
+        </div>
+
+        <!-- Navigation Sidebar -->
+        <nav class="sidebar">
+            <div class="nav-item active" data-section="me">
+                <div class="nav-icon">👤</div>
+                <span class="nav-text">Me</span>
+            </div>
+            <div class="nav-item" data-section="experience">
+                <div class="nav-icon">💼</div>
+                <span class="nav-text">Experience</span>
+            </div>
+            <div class="nav-item" data-section="projects">
+                <div class="nav-icon">🚀</div>
+                <span class="nav-text">Projects</span>
+            </div>
+            <div class="nav-item" data-section="skills">
+                <div class="nav-icon">⚡</div>
+                <span class="nav-text">Skills</span>
+            </div>
+            <div class="nav-item" data-section="contact">
+                <div class="nav-icon">📧</div>
+                <span class="nav-text">Contact</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="greeting">Hey, I'm Devarshi 👋</div>
+                <h1 class="title" id="dynamicTitle">GenAI Developer</h1>
+                <div class="avatar">
+                    <img src="https://via.placeholder.com/150x150/4ea1ff/ffffff?text=👨‍💻" alt="Avatar" class="avatar-img">
+                </div>
+            </header>
+
+            <!-- Chat Input -->
+            <div class="chat-container">
+                <div class="chat-input-wrapper">
+                    <input type="text" class="chat-input" placeholder="Ask me anything..." />
+                    <button class="chat-send-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Sections -->
+            <div class="content-sections">
+                <section id="me" class="content-section active">
+                    <h2>About Me</h2>
+                    <p>I'm a passionate GenAI Developer with expertise in machine learning, natural language processing, and building intelligent applications.</p>
+                </section>
+
+                <section id="experience" class="content-section">
+                    <h2>Experience</h2>
+                    <div class="experience-item">
+                        <h3>Senior AI Engineer</h3>
+                        <p>Leading AI initiatives and developing cutting-edge solutions.</p>
+                    </div>
+                </section>
+
+                <section id="projects" class="content-section">
+                    <h2>Projects</h2>
+                    <div class="project-grid">
+                        <div class="project-card">
+                            <h3>AI Chat Assistant</h3>
+                            <p>Intelligent conversational AI with advanced NLP capabilities.</p>
+                        </div>
+                        <div class="project-card">
+                            <h3>ML Pipeline</h3>
+                            <p>Automated machine learning pipeline for data processing.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="skills" class="content-section">
+                    <h2>Skills</h2>
+                    <div class="skills-grid">
+                        <div class="skill-item">Python</div>
+                        <div class="skill-item">TensorFlow</div>
+                        <div class="skill-item">PyTorch</div>
+                        <div class="skill-item">React</div>
+                        <div class="skill-item">Node.js</div>
+                        <div class="skill-item">AWS</div>
+                    </div>
+                </section>
+
+                <section id="contact" class="content-section">
+                    <h2>Contact</h2>
+                    <div class="contact-info">
+                        <p>📧 devarshi@example.com</p>
+                        <p>🔗 linkedin.com/in/devarshi</p>
+                        <p>🐙 github.com/devarshi</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="fluid-animation.js"></script>
+</body>
+</html>
