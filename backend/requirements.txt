@@ -1,6 +1,28 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
+# Core Framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# Spotify Integration
 spotipy==2.24.0
+
+# Environment & Configuration
 python-dotenv==1.0.1
 itsdangerous==2.2.0
+
+# Data Validation
+pydantic==2.10.4
+
+# Optional: Caching (uncomment if using Redis)
+# redis==6.4.0
+
+# Optional: Database (uncomment if using SQLAlchemy)
+# sqlalchemy==2.0.25
+# alembic==1.13.1
+
+# Development Dependencies (install with: pip install -r requirements.txt -r requirements-dev.txt)
+# Create requirements-dev.txt for:
+# pytest==7.4.3
+# pytest-asyncio==0.21.1
+# black==23.11.0
+# flake8==6.1.0
 

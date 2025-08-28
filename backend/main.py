@@ -1,39 +1,59 @@
 import os
 import secrets
-from typing import Dict, List, Optional
+import time
+import asyncio
+from typing import Dict, List, Optional, Union
 from urllib.parse import urlencode
+from functools import lru_cache
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 import json
 import re
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-def is_token_expired(token_info):
-    """Check if Spotify token is expired"""
+@lru_cache(maxsize=128)
+def get_cached_genre_seeds():
+    """Cache Spotify genre seeds to avoid repeated API calls"""
+    try:
+        oauth = get_spotify_oauth()
+        token = oauth.get_cached_token()
+        if token:
+            sp = spotipy.Spotify(auth=token["access_token"])
+            return sp.recommendation_genre_seeds()['genres']
+    except Exception as e:
+        logger.warning(f"Failed to cache genre seeds: {e}")
+    return ["pop", "rock", "electronic", "hip-hop", "jazz"]
+
+def is_token_expired(token_info: Optional[Dict]) -> bool:
+    """Check if Spotify token is expired with improved logic"""
     if not token_info:
         return True
     
     # Check if we have an expiration time
     if "expires_at" in token_info:
-        import time
         return time.time() > token_info["expires_at"]
     
-    # Fallback: check if token is older than 1 hour (3600 seconds)
-    if "expires_in" in token_info:
-        import time
-        # If we don't have expires_at, we can't determine exact expiration
-        # For now, assume token is valid if we have it
-        return False
-    
+    # Fallback: assume expired if no expiration info
     return True
 
-app = FastAPI(title="Moodify API", version="1.0.0")
+app = FastAPI(
+    title="Moodify API", 
+    version="1.0.0",
+    description="AI-Powered Music Discovery Platform",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 # CORS middleware
 app.add_middleware(
@@ -107,11 +127,12 @@ AUDIO_FEATURE_MAPPINGS = {
     "energetic": {"min_energy": 0.8, "max_energy": 1.0, "min_tempo": 130, "max_tempo": 180, "min_valence": 0.6, "max_valence": 0.9}
 }
 
+@lru_cache(maxsize=256)
 def enhanced_mood_analysis(query: str) -> Dict:
     """
-    Enhanced mood and genre analysis using natural language processing
+    Enhanced mood and genre analysis using natural language processing with caching
     """
-    query_lower = query.lower()
+    query_lower = query.lower().strip()
     
     # Initialize analysis result
     analysis = {
@@ -122,25 +143,22 @@ def enhanced_mood_analysis(query: str) -> Dict:
         "analysis_text": ""
     }
     
-    # Genre detection
-    detected_genres = []
+    # Optimized detection using set operations
+    detected_genres = set()
+    detected_moods = set()
+    
+    # More efficient keyword matching
     for genre, keywords in GENRE_MAPPINGS.items():
-        for keyword in keywords:
-            if keyword in query_lower:
-                detected_genres.append(genre)
-                break
+        if any(keyword in query_lower for keyword in keywords):
+            if genre in ["sad", "happy", "romantic", "energetic", "focus", "sleep", "nostalgic"]:
+                detected_moods.add(genre)
+            else:
+                detected_genres.add(genre)
     
-    # Mood detection
-    detected_moods = []
-    for mood, keywords in GENRE_MAPPINGS.items():
-        if mood in ["sad", "happy", "romantic", "energetic", "focus", "sleep", "nostalgic"]:
-            for keyword in keywords:
-                if keyword in query_lower:
-                    detected_moods.append(mood)
-                    break
-    
-    # Combine genres and moods
-    all_detected = list(set(detected_genres + detected_moods))
+    # Convert back to lists
+    detected_genres = list(detected_genres)
+    detected_moods = list(detected_moods)
+    all_detected = detected_genres + detected_moods
     
     # Get audio features for the most relevant genre/mood
     if all_detected:
@@ -148,23 +166,32 @@ def enhanced_mood_analysis(query: str) -> Dict:
         analysis["audio_features"] = AUDIO_FEATURE_MAPPINGS.get(primary_style, {})
         analysis["detected_genres"] = detected_genres
         analysis["detected_moods"] = detected_moods
-        analysis["confidence"] = min(len(all_detected) * 0.3, 1.0)
+        analysis["confidence"] = min(len(all_detected) * 0.25 + 0.1, 1.0)
         
         # Generate analysis text
-        genre_text = ", ".join(detected_genres) if detected_genres else "various genres"
-        mood_text = ", ".join(detected_moods) if detected_moods else "mixed emotions"
+        genre_text = ", ".join(detected_genres[:3]) if detected_genres else "various genres"
+        mood_text = ", ".join(detected_moods[:3]) if detected_moods else "mixed emotions"
         analysis["analysis_text"] = f"Detected {genre_text} with {mood_text} vibes"
     
     return analysis
 
-def get_user_listening_profile(sp) -> Dict:
+async def get_user_listening_profile(sp) -> Dict:
     """
-    Analyze user's listening profile to understand their preferences
+    Analyze user's listening profile to understand their preferences with async optimization
     """
     try:
-        # Get user's top tracks and artists
-        top_tracks = sp.current_user_top_tracks(limit=50, time_range='short_term')
-        top_artists = sp.current_user_top_artists(limit=20, time_range='short_term')
+        # Concurrent API calls for better performance
+        tasks = [
+            asyncio.create_task(asyncio.to_thread(sp.current_user_top_tracks, limit=30, time_range='short_term')),
+            asyncio.create_task(asyncio.to_thread(sp.current_user_top_artists, limit=15, time_range='short_term'))
+        ]
+        
+        top_tracks, top_artists = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Handle exceptions
+        if isinstance(top_tracks, Exception) or isinstance(top_artists, Exception):
+            logger.error(f"Error fetching user data: {top_tracks if isinstance(top_tracks, Exception) else top_artists}")
+            return {}
         
         # Analyze genres from top artists
         genre_counts = {}
@@ -176,16 +203,27 @@ def get_user_listening_profile(sp) -> Dict:
         top_genres = sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)[:5]
         
         # Analyze audio features of top tracks
-        track_ids = [track['id'] for track in top_tracks['items']]
-        audio_features = sp.audio_features(track_ids)
+        track_ids = [track['id'] for track in top_tracks['items'] if track['id']]
         
-        # Calculate average audio features
-        avg_features = {
-            'energy': sum(f['energy'] for f in audio_features if f) / len(audio_features),
-            'tempo': sum(f['tempo'] for f in audio_features if f) / len(audio_features),
-            'valence': sum(f['valence'] for f in audio_features if f) / len(audio_features),
-            'danceability': sum(f['danceability'] for f in audio_features if f) / len(audio_features)
-        }
+        if track_ids:
+            audio_features = await asyncio.to_thread(sp.audio_features, track_ids)
+            valid_features = [f for f in audio_features if f]
+            
+            if valid_features:
+                # Calculate average audio features more efficiently
+                feature_sums = {
+                    'energy': sum(f['energy'] for f in valid_features),
+                    'tempo': sum(f['tempo'] for f in valid_features),
+                    'valence': sum(f['valence'] for f in valid_features),
+                    'danceability': sum(f['danceability'] for f in valid_features)
+                }
+                
+                count = len(valid_features)
+                avg_features = {k: v / count for k, v in feature_sums.items()}
+            else:
+                avg_features = {}
+        else:
+            avg_features = {}
         
         return {
             "top_genres": [genre for genre, count in top_genres],
@@ -195,7 +233,7 @@ def get_user_listening_profile(sp) -> Dict:
         }
         
     except Exception as e:
-        print(f"Error analyzing user profile: {e}")
+        logger.error(f"Error analyzing user profile: {e}")
         return {}
 
 def get_spotify_oauth():
@@ -299,158 +337,171 @@ async def get_user_profile(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/recommend")
-async def recommend_tracks(request: Request, query: Dict):
-    """Enhanced AI-powered track recommendations"""
+async def recommend_tracks(request: Request, query: Dict, background_tasks: BackgroundTasks):
+    """Enhanced AI-powered track recommendations with optimized performance"""
     sp = await _ensure_token(request)
     if not sp:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
-        user_query = query.get("query", "")
+        user_query = query.get("query", "").strip()
         create_playlist = query.get("create_playlist", False)
-        playlist_name = query.get("playlist_name", "")
+        playlist_name = query.get("playlist_name", "").strip()
         
-        # Enhanced mood analysis
+        if not user_query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        
+        # Enhanced mood analysis (cached)
         analysis = enhanced_mood_analysis(user_query)
         
-        # Get user's listening profile
-        user_profile = get_user_listening_profile(sp)
+        # Get user's listening profile asynchronously
+        user_profile = await get_user_listening_profile(sp)
         
         # Combine user preferences with query analysis
         audio_features = analysis["audio_features"].copy()
         
-        # Adjust based on user's preferences
-        if user_profile and "avg_audio_features" in user_profile:
+        # Adjust based on user's preferences with improved blending
+        if user_profile and "avg_audio_features" in user_profile and user_profile["avg_audio_features"]:
             user_avg = user_profile["avg_audio_features"]
-            # Blend user preferences with query (70% query, 30% user preference)
+            # Blend user preferences with query (75% query, 25% user preference for better personalization)
+            blend_ratio = 0.75
             for feature in ["energy", "tempo", "valence"]:
                 if feature in audio_features and feature in user_avg:
-                    query_val = audio_features[feature]
+                    query_val = audio_features.get(f"min_{feature}", audio_features.get(feature, user_avg[feature]))
                     user_val = user_avg[feature]
-                    audio_features[feature] = query_val * 0.7 + user_val * 0.3
+                    blended_val = query_val * blend_ratio + user_val * (1 - blend_ratio)
+                    
+                    # Update both min and max if they exist
+                    if f"min_{feature}" in audio_features:
+                        audio_features[f"min_{feature}"] = max(0, blended_val - 0.1)
+                    if f"max_{feature}" in audio_features:
+                        audio_features[f"max_{feature}"] = min(1, blended_val + 0.1)
         
-        # Get available genre seeds
-        available_genres = sp.recommendation_genre_seeds()
-        valid_genres = available_genres['genres']
+        # Get available genre seeds (cached)
+        valid_genres = get_cached_genre_seeds()
         
-        # Filter and select genres
+        # Optimized genre selection
         seed_genres = []
-        if analysis["detected_genres"]:
-            for genre in analysis["detected_genres"]:
-                # Map our genres to Spotify genres
-                if genre in valid_genres:
-                    seed_genres.append(genre)
-                elif genre == "hip_hop" and "hip-hop" in valid_genres:
-                    seed_genres.append("hip-hop")
-                elif genre == "electronic" and "electronic" in valid_genres:
-                    seed_genres.append("electronic")
+        genre_mapping = {
+            "hip_hop": "hip-hop",
+            "electronic": "electronic",
+            "r&b": "r-n-b"
+        }
         
-        # Fallback to user's top genres if no query genres found
-        if not seed_genres and user_profile and "top_genres" in user_profile:
-            for genre in user_profile["top_genres"]:
-                if genre in valid_genres and len(seed_genres) < 3:
+        # Map detected genres to Spotify genres
+        for genre in analysis["detected_genres"][:3]:  # Limit to top 3
+            spotify_genre = genre_mapping.get(genre, genre)
+            if spotify_genre in valid_genres and spotify_genre not in seed_genres:
+                seed_genres.append(spotify_genre)
+        
+        # Fallback to user's top genres
+        if len(seed_genres) < 2 and user_profile and "top_genres" in user_profile:
+            for genre in user_profile["top_genres"][:3]:
+                if genre in valid_genres and genre not in seed_genres and len(seed_genres) < 3:
                     seed_genres.append(genre)
         
-        # Final fallback to popular genres
+        # Final fallback
         if not seed_genres:
-            seed_genres = ["pop", "rock", "electronic"][:3]
+            seed_genres = ["pop", "rock"]
         
-        # Get recommendations
-        recommendations = sp.recommendations(
-            seed_genres=seed_genres[:3],  # Spotify allows max 5, but we'll use 3
-            limit=20,
-            **audio_features
-        )
+        # Get recommendations with error handling
+        try:
+            recommendations = await asyncio.to_thread(
+                sp.recommendations,
+                seed_genres=seed_genres[:2],  # Use max 2 genres for better results
+                limit=25,  # Get a few extra for filtering
+                **{k: v for k, v in audio_features.items() if v is not None}
+            )
+        except Exception as rec_error:
+            logger.warning(f"Recommendation API failed: {rec_error}, falling back to search")
+            # Fallback to search
+            search_results = await asyncio.to_thread(sp.search, q=user_query, type='track', limit=20)
+            recommendations = {'tracks': search_results['tracks']['items']}
         
-        # Process tracks
+        # Process tracks efficiently
         tracks = []
         track_ids = []
-        for track in recommendations['tracks']:
-            tracks.append({
-                'id': track['id'],
-                'name': track['name'],
-                'artists': [artist['name'] for artist in track['artists']],
-                'album': track['album']['name'],
-                'album_image': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                'external_url': track['external_urls']['spotify'],
-                'preview_url': track['preview_url'],
-                'popularity': track['popularity']
-            })
-            track_ids.append(track['id'])
         
-        # Create playlist if requested
-        playlist_info = None
-        if create_playlist and track_ids:
-            try:
-                # Get current user
-                user = sp.current_user()
-                
-                # Generate playlist name if not provided
-                if not playlist_name:
-                    genre_text = ", ".join(analysis["detected_genres"][:2]) if analysis["detected_genres"] else "Mixed"
-                    mood_text = ", ".join(analysis["detected_moods"][:2]) if analysis["detected_moods"] else "Vibes"
-                    playlist_name = f"🎵 {genre_text} {mood_text} - Moodify"
-                
-                # Create playlist description
-                description = f"AI-generated playlist based on: {user_query}. Genres: {', '.join(analysis['detected_genres'])}. Moods: {', '.join(analysis['detected_moods'])}"
-                
-                # Create the playlist
-                playlist = sp.user_playlist_create(
-                    user=user['id'],
-                    name=playlist_name,
-                    public=True,
-                    description=description
-                )
-                
-                # Add tracks to playlist
-                sp.playlist_add_items(playlist['id'], track_ids)
-                
-                # Add playlist to user's library
-                sp.user_playlist_follow_playlist(user['id'], playlist['id'])
-                
-                playlist_info = {
-                    'id': playlist['id'],
-                    'name': playlist['name'],
-                    'url': playlist['external_urls']['spotify'],
-                    'tracks_added': len(track_ids),
-                    'description': description
+        for track in recommendations['tracks'][:20]:  # Limit to 20 tracks
+            if track and track.get('id'):
+                track_data = {
+                    'id': track['id'],
+                    'name': track['name'],
+                    'artists': [artist['name'] for artist in track.get('artists', [])],
+                    'album': track.get('album', {}).get('name', 'Unknown Album'),
+                    'album_image': None,
+                    'external_url': track.get('external_urls', {}).get('spotify'),
+                    'preview_url': track.get('preview_url'),
+                    'popularity': track.get('popularity', 0)
                 }
                 
-                print(f"Created playlist: {playlist_name} with {len(track_ids)} tracks")
+                # Get album image safely
+                album_images = track.get('album', {}).get('images', [])
+                if album_images:
+                    track_data['album_image'] = album_images[0]['url']
                 
-            except Exception as playlist_error:
-                print(f"Error creating playlist: {playlist_error}")
-                playlist_info = {"error": str(playlist_error)}
+                tracks.append(track_data)
+                track_ids.append(track['id'])
         
-        return {
+        # Create playlist in background if requested
+        playlist_info = None
+        if create_playlist and track_ids:
+            background_tasks.add_task(
+                create_playlist_background,
+                sp, user_query, playlist_name, track_ids, analysis
+            )
+            playlist_info = {"status": "creating", "message": "Playlist is being created in the background"}
+        
+        return JSONResponse({
             "query": user_query,
             "analysis": analysis,
             "user_profile": user_profile,
             "tracks": tracks,
-            "playlist_created": playlist_info is not None,
-            "playlist_info": playlist_info
-        }
+            "playlist_created": create_playlist,
+            "playlist_info": playlist_info,
+            "total_tracks": len(tracks)
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in recommendations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate recommendations")
+
+async def create_playlist_background(sp, user_query: str, playlist_name: str, track_ids: List[str], analysis: Dict):
+    """Background task to create playlist"""
+    try:
+        user = await asyncio.to_thread(sp.current_user)
+        
+        # Generate playlist name if not provided
+        if not playlist_name:
+            genre_text = ", ".join(analysis["detected_genres"][:2]) if analysis["detected_genres"] else "Mixed"
+            mood_text = ", ".join(analysis["detected_moods"][:2]) if analysis["detected_moods"] else "Vibes"
+            playlist_name = f"🎵 {genre_text} {mood_text} - Moodify"
+        
+        # Create playlist description
+        description = f"AI-generated playlist based on: {user_query}"
+        if analysis["detected_genres"]:
+            description += f" | Genres: {', '.join(analysis['detected_genres'][:3])}"
+        if analysis["detected_moods"]:
+            description += f" | Moods: {', '.join(analysis['detected_moods'][:3])}"
+        
+        # Create the playlist
+        playlist = await asyncio.to_thread(
+            sp.user_playlist_create,
+            user=user['id'],
+            name=playlist_name,
+            public=True,
+            description=description
+        )
+        
+        # Add tracks to playlist
+        await asyncio.to_thread(sp.playlist_add_items, playlist['id'], track_ids)
+        
+        logger.info(f"Created playlist: {playlist_name} with {len(track_ids)} tracks")
         
     except Exception as e:
-        print(f"Error in recommendations: {e}")
-        # Fallback to search
-        try:
-            search_results = sp.search(q=user_query, type='track', limit=20)
-            tracks = []
-            for track in search_results['tracks']['items']:
-                tracks.append({
-                    'id': track['id'],
-                    'name': track['name'],
-                    'artists': [artist['name'] for artist in track['artists']],
-                    'album': track['album']['name'],
-                    'album_image': track['album']['images'][0]['url'] if track['album']['images'] else None,
-                    'external_url': track['external_urls']['spotify'],
-                    'preview_url': track['preview_url'],
-                    'popularity': track['popularity']
-                })
-            return {"query": user_query, "tracks": tracks, "fallback": True}
-        except Exception as search_error:
-            raise HTTPException(status_code=500, detail=f"Recommendation error: {str(e)}")
+        logger.error(f"Error creating playlist in background: {e}")
 
 @app.get("/api/top-tracks")
 async def get_top_tracks(request: Request):

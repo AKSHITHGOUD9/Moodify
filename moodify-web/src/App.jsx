@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import "./App.css";
 import FluidCursor from "./components/FluidCursor";
 
@@ -33,25 +33,38 @@ export default function App() {
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
-  const login = () => {
+  const login = useCallback(() => {
     window.location.href = `${API}/login`;
-  };
+  }, []);
 
-  const loadMe = async () => {
+  const loadMe = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/me`, { credentials: "include" });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
+      const res = await fetch(`${API}/me`, { 
+        credentials: "include",
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setMe(data);
       setErr("");
       setLastUpdated(new Date().toLocaleTimeString());
     } catch (e) {
-      setErr(String(e));
+      if (e.name === 'AbortError') {
+        setErr('Request timeout - please try again');
+      } else {
+        setErr(String(e));
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const loadAnalytics = async () => {
     setLoadingAnalytics(true);
@@ -107,37 +120,56 @@ export default function App() {
 
 
 
-  const generateRecs = async () => {
+  const generateRecs = useCallback(async () => {
     if (!mood.trim()) return;
 
     setIsGenerating(true);
     setRecsErr("");
     setRecs([]);
+    
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for recommendations
+      
       const res = await fetch(`${API}/recommend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({
-          query: mood,
+          query: mood.trim(),
           create_playlist: createPlaylist,
-          playlist_name: playlistName
+          playlist_name: playlistName.trim()
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${res.status}`);
+      }
+      
       const data = await res.json();
-      setRecs(data.tracks || []);
+      setRecs(data);
 
       // Show playlist creation success
-      if (data.playlist_created && data.playlist_info) {
-        alert(`🎵 Playlist created successfully!\n\nName: ${data.playlist_info.name}\nTracks: ${data.playlist_info.tracks_added}\n\nCheck your Spotify library!`);
+      if (data.playlist_created && data.playlist_info && data.playlist_info.status !== "creating") {
+        const message = `🎵 Playlist created successfully!\n\nName: ${data.playlist_info.name}\nTracks: ${data.playlist_info.tracks_added}\n\nCheck your Spotify library!`;
+        setTimeout(() => alert(message), 500); // Slight delay for better UX
+      } else if (data.playlist_created && data.playlist_info?.status === "creating") {
+        setTimeout(() => alert("🎵 Playlist is being created in the background!\n\nCheck your Spotify library in a few moments."), 500);
       }
     } catch (e) {
-      setRecsErr(String(e));
+      if (e.name === 'AbortError') {
+        setRecsErr('Request timeout - please try a shorter query');
+      } else {
+        setRecsErr(String(e));
+      }
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [mood, createPlaylist, playlistName]);
 
   return (
     <div className="app-container">
@@ -265,7 +297,7 @@ export default function App() {
               </section>
 
               {/* Recommendations grid */}
-              {recs.length > 0 && (
+              {(recs.tracks?.length > 0 || recs.length > 0) && (
                 <section className="recommendations-section">
                   <h3 className="section-title">✨ Your AI-Generated Playlist</h3>
 
@@ -351,7 +383,7 @@ export default function App() {
                   )}
 
                   <div className="tracks-grid">
-                    {recs.map((track) => (
+                    {(recs.tracks || recs).map((track) => (
                       <div key={track.id} className="track-card">
                         <div className="track-image">
                           {track.album_image ? (
