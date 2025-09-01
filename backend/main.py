@@ -61,21 +61,19 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5173",
         "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
     ] + (os.getenv("FRONTEND_URLS", "").split(",") if os.getenv("FRONTEND_URLS") else []),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Session middleware
+# Session middleware - Same-origin configuration
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "your-secret-key"),
-    max_age=60 * 60 * 24 * 30,  # 30 days
+    max_age=60 * 60 * 24 * 7,  # 7 days for development
     https_only=False,  # Set to True in production
-    same_site="lax"  # Allow cross-site cookies for localhost
+    same_site="lax"  # Standard same-site policy
 )
 
 # Enhanced genre and mood mapping
@@ -311,7 +309,7 @@ async def callback(request: Request, code: str = None, state: str = None):
         session["spotify_token_info"] = token_info
         
         # Redirect to frontend
-        frontend_url = os.getenv("POST_LOGIN_REDIRECT", "http://127.0.0.1:5173/")
+        frontend_url = os.getenv("POST_LOGIN_REDIRECT", "http://localhost:5173/")
         return RedirectResponse(frontend_url)
         
     except Exception as e:

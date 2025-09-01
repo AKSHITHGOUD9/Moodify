@@ -49,7 +49,7 @@ fi
 
 # Start backend in background
 source venv/bin/activate
-uvicorn main:app --reload --host 0.0.0.0 --port 8000 &
+uvicorn main:app --reload --host 127.0.0.1 --port 8000 &
 BACKEND_PID=$!
 
 cd ..
@@ -71,9 +71,9 @@ cd ..
 
 echo "\n✅ Services starting up..."
 echo "\n🔗 URLs:"
-echo "   Frontend: http://localhost:5173"
-echo "   Backend API: http://localhost:8000"
-echo "   API Docs: http://localhost:8000/docs"
+echo "   Frontend: http://127.0.0.1:5173"
+echo "   Backend API: http://127.0.0.1:8000"
+echo "   API Docs: http://127.0.0.1:8000/docs"
 echo "\n⏳ Waiting for services to be ready..."
 
 # Wait a bit for services to start

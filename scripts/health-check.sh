@@ -9,12 +9,12 @@ echo "🏥 Moodify Health Check"
 echo "====================="
 
 # Check backend
-echo "\n🔍 Checking backend (http://localhost:8000)..."
-if curl -s -f "http://localhost:8000/" > /dev/null; then
+echo "\n🔍 Checking backend (http://127.0.0.1:8000)..."
+if curl -s -f "http://127.0.0.1:8000/" > /dev/null; then
     echo "✅ Backend is running"
     
     # Check if backend returns proper JSON
-    response=$(curl -s "http://localhost:8000/")
+    response=$(curl -s "http://127.0.0.1:8000/")
     if echo "$response" | grep -q "Moodify"; then
         echo "✅ Backend API is responding correctly"
     else
@@ -22,12 +22,12 @@ if curl -s -f "http://localhost:8000/" > /dev/null; then
     fi
 else
     echo "❌ Backend is not responding"
-    echo "   Make sure to start it with: cd backend && uvicorn main:app --reload"
+    echo "   Make sure to start it with: cd backend && uvicorn main:app --reload --host 127.0.0.1"
 fi
 
 # Check frontend
-echo "\n🔍 Checking frontend (http://localhost:5173)..."
-if curl -s -f "http://localhost:5173/" > /dev/null; then
+echo "\n🔍 Checking frontend (http://127.0.0.1:5173)..."
+if curl -s -f "http://127.0.0.1:5173/" > /dev/null; then
     echo "✅ Frontend is running"
 else
     echo "❌ Frontend is not responding"
@@ -35,11 +35,11 @@ else
 fi
 
 # Check if both are running
-backend_running=$(curl -s -f "http://localhost:8000/" > /dev/null && echo "true" || echo "false")
-frontend_running=$(curl -s -f "http://localhost:5173/" > /dev/null && echo "true" || echo "false")
+backend_running=$(curl -s -f "http://127.0.0.1:8000/" > /dev/null && echo "true" || echo "false")
+frontend_running=$(curl -s -f "http://127.0.0.1:5173/" > /dev/null && echo "true" || echo "false")
 
 if [ "$backend_running" = "true" ] && [ "$frontend_running" = "true" ]; then
-    echo "\n🎉 All services are running! Visit http://localhost:5173 to use Moodify"
+    echo "\n🎉 All services are running! Visit http://127.0.0.1:5173 to use Moodify"
 else
     echo "\n⚠️  Some services are not running. Please check the logs above."
 fi
