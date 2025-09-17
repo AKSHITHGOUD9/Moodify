@@ -1961,3 +1961,26 @@ r Profile Dropdown with Close Button */
     height: 16px;
   }
 }
+
+
+
+/* Add to src/App.css */
+.album-cover-cursor-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1; /* Place it behind the main content */
+  pointer-events: none; /* Allows clicks to pass through */
+}
+
+.cursor-album-cover {
+  position: absolute;
+  width: 60px; /* Small square size */
+  height: 60px;
+  border-radius: 8px; /* Slightly rounded corners */
+  object-fit: cover;
+  transform: translate(-50%, -50%); /* Center the image on the cursor */
+  will-change: transform, opacity;
+}

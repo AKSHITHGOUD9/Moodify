@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import json
 import re
 import logging
+from fastapi.responses import JSONResponse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -668,3 +669,81 @@ async def get_user_playlists(request: Request):
         return {"error": str(e)}
 
 
+@app.get("/api/album-covers")
+async def get_album_covers(request: Request):
+    """Get album covers from user's listening history"""
+    sp = await _ensure_token(request)
+    if not sp:
+        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+    
+    try:
+        # Get user's top tracks from different time ranges
+        album_covers = set()  # Use set to avoid duplicates
+        
+        # Get top tracks from different time ranges with higher limits
+        time_ranges = ['short_term', 'medium_term', 'long_term']
+        
+        for time_range in time_ranges:
+            try:
+                top_tracks = await asyncio.to_thread(sp.current_user_top_tracks, time_range=time_range, limit=100)
+                for track in top_tracks['items']:
+                    if track['album']['images']:
+                        album_covers.add(track['album']['images'][0]['url'])
+            except Exception as e:
+                logger.warning(f"Failed to fetch {time_range} tracks: {e}")
+                continue
+        
+        # Get recent tracks with higher limit
+        try:
+            recent_tracks = await asyncio.to_thread(sp.current_user_recently_played, limit=100)
+            for track in recent_tracks['items']:
+                if track['track']['album']['images']:
+                    album_covers.add(track['track']['album']['images'][0]['url'])
+        except Exception as e:
+            logger.warning(f"Failed to fetch recent tracks: {e}")
+        
+        # Get user's saved albums
+        try:
+            saved_albums = await asyncio.to_thread(sp.current_user_saved_albums, limit=50)
+            for album in saved_albums['items']:
+                if album['album']['images']:
+                    album_covers.add(album['album']['images'][0]['url'])
+        except Exception as e:
+            logger.warning(f"Failed to fetch saved albums: {e}")
+        
+        # Get user's playlists and their tracks
+        try:
+            playlists = await asyncio.to_thread(sp.current_user_playlists, limit=20)
+            for playlist in playlists['items']:
+                try:
+                    playlist_tracks = await asyncio.to_thread(sp.playlist_tracks, playlist['id'], limit=50)
+                    for track in playlist_tracks['items']:
+                        if track['track'] and track['track']['album']['images']:
+                            album_covers.add(track['track']['album']['images'][0]['url'])
+                except Exception as e:
+                    logger.warning(f"Failed to fetch tracks from playlist {playlist['name']}: {e}")
+                    continue
+        except Exception as e:
+            logger.warning(f"Failed to fetch playlists: {e}")
+        
+        # If still not enough, get new releases as fallback
+        if len(album_covers) < 200:
+            try:
+                new_releases = await asyncio.to_thread(sp.new_releases, limit=100)
+                for album in new_releases['albums']['items']:
+                    if album['images']:
+                        album_covers.add(album['images'][0]['url'])
+            except Exception as e:
+                logger.warning(f"Failed to fetch new releases: {e}")
+        
+        # Convert set to list and shuffle
+        album_covers_list = list(album_covers)
+        
+        # Debug logging
+        logger.info(f"Returning {len(album_covers_list)} unique album cover URLs from user's history")
+        
+        return JSONResponse({"urls": album_covers_list})
+        
+    except Exception as e:
+        logger.error(f"Error fetching album covers: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)

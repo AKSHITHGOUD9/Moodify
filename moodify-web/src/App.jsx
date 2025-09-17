@@ -1,8 +1,12 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import "./App.css";
-import FluidCursor from "./components/FluidCursor";
+// import FluidCursor from "./components/FluidCursor"; 
+// import AlbumCoverCursor from "./components/AlbumCoverCursor";
+
+import AlbumCoverGrid from "./components/AlbumCoverGrid";
 
 const API = import.meta.env.VITE_BACKEND_URL;
+
 
 // Cool rotating quotes
 const COOL_QUOTES = [
@@ -174,7 +178,7 @@ export default function App() {
   return (
     <div className="app-container">
       {/* Advanced Fluid Cursor Animation */}
-      <FluidCursor />
+      <AlbumCoverGrid />
 
       {/* Main content */}
       <div className="content">
