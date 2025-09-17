@@ -68,7 +68,7 @@ const AlbumCoverGrid = () => {
       }
       showTimeout.current = setTimeout(() => {
         setShowTiles(true);
-      }, 100); // Small delay for fluid effect
+      }, 0.5); // Small delay for fluid effect
       
       // Clear existing timeout
       if (fadeTimeout.current) {

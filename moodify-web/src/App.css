@@ -522,7 +522,7 @@ body {
 .ghost-playlist-input {
   width: 100%;
   /* TRANSPARENT */
-  background: transparent;
+  background: #000000;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 12px 16px;
@@ -536,7 +536,7 @@ body {
 
 .ghost-playlist-input:focus {
   border-color: rgba(78, 161, 255, 0.3);
-  background: transparent;
+  background: #6d55f76f;
   box-shadow: 0 0 0 2px rgba(78, 161, 255, 0.1);
 }
 
@@ -618,7 +618,7 @@ body {
 }
 
 .track-card {
-  background: transparent;
+  background: #000000;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 1.5rem;
@@ -628,7 +628,7 @@ body {
 .track-card:hover {
   transform: translateY(-8px);
   border-color: rgba(78, 161, 255, 0.5);
-  background: rgba(78, 161, 255, 0.05);
+  background: rgba(0, 0, 0, 0.9);
   box-shadow: 0 25px 50px rgba(78, 161, 255, 0.2);
 }
 
@@ -1983,4 +1983,15 @@ r Profile Dropdown with Close Button */
   object-fit: cover;
   transform: translate(-50%, -50%); /* Center the image on the cursor */
   will-change: transform, opacity;
+}
+
+/* Updated CSS in App.css */
+.ai-analysis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: stretch;
+  /* Increased space below the AI analysis cards */
+  margin-bottom: 4rem;
 }

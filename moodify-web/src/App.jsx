@@ -1,12 +1,9 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import "./App.css";
-// import FluidCursor from "./components/FluidCursor"; 
-// import AlbumCoverCursor from "./components/AlbumCoverCursor";
 
 import AlbumCoverGrid from "./components/AlbumCoverGrid";
 
 const API = import.meta.env.VITE_BACKEND_URL;
-
 
 // Cool rotating quotes
 const COOL_QUOTES = [
@@ -17,7 +14,13 @@ const COOL_QUOTES = [
   "🎷 Your emotions, our algorithms, pure magic"
 ];
 
+// Main App Component
 export default function App() {
+
+  // =========================================================================
+  // STATE MANAGEMENT
+  // Manages all component state variables
+  // =========================================================================
   const [me, setMe] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,6 +28,7 @@ export default function App() {
   const [showRaw, setShowRaw] = useState(false);
   const [mood, setMood] = useState("");
   const [recs, setRecs] = useState([]);
+  const [trackIds, setTrackIds] = useState([]);
   const [recsErr, setRecsErr] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -37,6 +41,11 @@ export default function App() {
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
+
+  // =========================================================================
+  // DATA FETCHING & LOGIC
+  // Handles all API calls and core application logic
+  // =========================================================================
   const login = useCallback(() => {
     window.location.href = `${API}/login`;
   }, []);
@@ -107,33 +116,21 @@ export default function App() {
     setShowDashboard(!showDashboard);
   };
 
-  useEffect(() => {
-    loadMe();
-  }, []);
-
-
-
-  // Rotating quotes effect
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentQuoteIndex((prev) => (prev + 1) % COOL_QUOTES.length);
-    }, 3000); // Change quote every 3 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-
-
+  /**
+   * Generates track recommendations based on user mood.
+   * Note: This function no longer auto-creates a playlist. It only fetches track data.
+   */
   const generateRecs = useCallback(async () => {
     if (!mood.trim()) return;
 
     setIsGenerating(true);
     setRecsErr("");
     setRecs([]);
+    setTrackIds([]);
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for recommendations
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
       
       const res = await fetch(`${API}/recommend`, {
         method: "POST",
@@ -142,8 +139,7 @@ export default function App() {
         signal: controller.signal,
         body: JSON.stringify({
           query: mood.trim(),
-          create_playlist: createPlaylist,
-          playlist_name: playlistName.trim()
+          create_playlist: false, // Explicitly set to false
         }),
       });
       
@@ -156,14 +152,13 @@ export default function App() {
       
       const data = await res.json();
       setRecs(data);
-
-      // Show playlist creation success
-      if (data.playlist_created && data.playlist_info && data.playlist_info.status !== "creating") {
-        const message = `🎵 Playlist created successfully!\n\nName: ${data.playlist_info.name}\nTracks: ${data.playlist_info.tracks_added}\n\nCheck your Spotify library!`;
-        setTimeout(() => alert(message), 500); // Slight delay for better UX
-      } else if (data.playlist_created && data.playlist_info?.status === "creating") {
-        setTimeout(() => alert("🎵 Playlist is being created in the background!\n\nCheck your Spotify library in a few moments."), 500);
+      
+      // Store the track IDs for later playlist creation
+      if (data.tracks?.length > 0) {
+        const ids = data.tracks.map(track => track.id);
+        setTrackIds(ids);
       }
+      
     } catch (e) {
       if (e.name === 'AbortError') {
         setRecsErr('Request timeout - please try a shorter query');
@@ -173,8 +168,69 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
-  }, [mood, createPlaylist, playlistName]);
+  }, [mood]);
 
+  /**
+   * Creates a Spotify playlist from the currently loaded recommendations.
+   * This is a user-initiated action.
+   */
+  const createPlaylistFromRecs = async () => {
+    if (trackIds.length === 0) {
+      alert("No tracks to add to the playlist.");
+      return;
+    }
+    
+    try {
+      const playlistData = {
+        name: playlistName.trim() || `Moodify Playlist for "${mood}"`,
+        description: `AI-generated playlist based on: ${mood}`,
+        track_ids: trackIds,
+      };
+      
+      const res = await fetch(`${API}/create-playlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(playlistData),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${res.status}`);
+      }
+      
+      const data = await res.json();
+      alert(`🎵 Playlist created successfully!\n\nName: ${data.playlist.name}\nTracks: ${data.playlist.tracks_added}\n\nCheck your Spotify library!`);
+      
+    } catch (e) {
+      console.error("Failed to create playlist:", e);
+      alert("Failed to create playlist. Please try again.");
+    }
+  };
+
+
+  // =========================================================================
+  // UI EFFECTS
+  // Handles non-rendering side effects like API calls on component mount
+  // =========================================================================
+  useEffect(() => {
+    loadMe();
+  }, []);
+
+  // Rotating quotes effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentQuoteIndex((prev) => (prev + 1) % COOL_QUOTES.length);
+    }, 3000); // Change quote every 3 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+
+  // =========================================================================
+  // COMPONENT RENDERING
+  // Defines the component's UI structure
+  // =========================================================================
   return (
     <div className="app-container">
       {/* Advanced Fluid Cursor Animation */}
@@ -314,7 +370,7 @@ export default function App() {
                         <div className="analysis-details">
                           {recs.analysis.detected_genres.length > 0 && (
                             <div className="analysis-item">
-                              <span className="label">Genres:</span>
+                              <span className="label">Genres: </span>
                               <span className="value">{recs.analysis.detected_genres.join(", ")}</span>
                             </div>
                           )}
@@ -325,43 +381,13 @@ export default function App() {
                             </div>
                           )}
                           <div className="analysis-item">
-                            <span className="label">Confidence:</span>
+                            <span className="label">Confidence: </span>
                             <span className="value">{Math.round(recs.analysis.confidence * 100)}%</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Playlist Creation Success */}
-                      {recs.playlist_created && recs.playlist_info && (
-                        <div className="analysis-card playlist-success">
-                          <h4>🎵 Playlist Created!</h4>
-                          <div className="playlist-details">
-                            <div className="playlist-item">
-                              <span className="label">Name:</span>
-                              <span className="value">{recs.playlist_info.name}</span>
-                            </div>
-                            <div className="playlist-item">
-                              <span className="label">Tracks:</span>
-                              <span className="value">{recs.playlist_info.tracks_added}</span>
-                            </div>
-                            <div className="playlist-item">
-                              <span className="label">Status:</span>
-                              <span className="value">✅ Added to your library</span>
-                            </div>
-                          </div>
-                          {recs.playlist_info.url && (
-                            <a
-                              href={recs.playlist_info.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="spotify-playlist-link"
-                            >
-                              🎧 Open in Spotify
-                            </a>
-                          )}
-                        </div>
-                      )}
-
+                      {/* Your Music Profile */}
                       {recs.user_profile && recs.user_profile.top_genres && (
                         <div className="analysis-card">
                           <h4>🎵 Your Music Profile</h4>
@@ -385,6 +411,17 @@ export default function App() {
                       )}
                     </div>
                   )}
+
+                  {/* NEW: Playlist Creation Button */}
+                  <div style={{ textAlign: "center", margin: "2rem auto" }}>
+                    <button
+                      className="login-button" 
+                      onClick={createPlaylistFromRecs}
+                      disabled={isGenerating || trackIds.length === 0}
+                    >
+                      Create Playlist on Spotify
+                    </button>
+                  </div>
 
                   <div className="tracks-grid">
                     {(recs.tracks || recs).map((track) => (
