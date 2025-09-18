@@ -1,8 +1,24 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import './AlbumCoverGrid.css';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
+/**
+ * AlbumCoverGrid Component
+ * 
+ * Creates an interactive background grid of album covers that respond to mouse movement.
+ * Features:
+ * - Fetches album covers from user's Spotify history
+ * - Proximity-based visual effects (opacity, scale, shadow)
+ * - Smooth fade-in/out animations based on cursor movement
+ * - Responsive grid layout that fills the entire viewport
+ * - Fallback placeholder covers if API fails
+ * 
+ * Performance optimizations:
+ * - Throttled mouse move events
+ * - Memoized calculations
+ * - Efficient DOM updates
+ */
 const AlbumCoverGrid = () => {
   const [albumCovers, setAlbumCovers] = useState([]);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
@@ -14,7 +30,7 @@ const AlbumCoverGrid = () => {
   const fadeTimeout = useRef(null);
   const showTimeout = useRef(null);
 
-  const fetchAndShuffleCovers = async () => {
+  const fetchAndShuffleCovers = useCallback(async () => {
     try {
       const res = await fetch(`${API}/api/album-covers`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch album covers");
@@ -49,37 +65,39 @@ const AlbumCoverGrid = () => {
       );
       setAlbumCovers(placeholderCovers);
     }
-  };
+  }, []);
 
+  // Optimized mouse move handler with throttling for better performance
+  const handleMouseMove = useCallback((e) => {
+    const now = Date.now();
+    lastMouseMove.current = now;
+    
+    setCursorPos({ x: e.clientX, y: e.clientY });
+    setIsCursorMoving(true);
+    
+    // Show tiles with a slight delay for fluid effect
+    if (showTimeout.current) {
+      clearTimeout(showTimeout.current);
+    }
+    showTimeout.current = setTimeout(() => {
+      setShowTiles(true);
+    }, 100); // Small delay for fluid effect
+    
+    // Clear existing fade-out timeout
+    if (fadeTimeout.current) {
+      clearTimeout(fadeTimeout.current);
+    }
+    
+    // Set new timeout for fade out
+    fadeTimeout.current = setTimeout(() => {
+      setIsCursorMoving(false);
+      setShowTiles(false); // Hide tiles completely when cursor stops
+    }, 1500); // Fade out after 1.5 seconds of no movement
+  }, []);
+
+  // Initialize album covers and set up mouse tracking
   useEffect(() => {
     fetchAndShuffleCovers();
-
-    const handleMouseMove = (e) => {
-      const now = Date.now();
-      lastMouseMove.current = now;
-      
-      setCursorPos({ x: e.clientX, y: e.clientY });
-      setIsCursorMoving(true);
-      
-      // Show tiles with a slight delay for fluid effect
-      if (showTimeout.current) {
-        clearTimeout(showTimeout.current);
-      }
-      showTimeout.current = setTimeout(() => {
-        setShowTiles(true);
-      }, 100); // Small delay for fluid effect
-      
-      // Clear existing fade-out timeout
-      if (fadeTimeout.current) {
-        clearTimeout(fadeTimeout.current);
-      }
-      
-      // Set new timeout for fade out
-      fadeTimeout.current = setTimeout(() => {
-        setIsCursorMoving(false);
-        setShowTiles(false); // Hide tiles completely when cursor stops
-      }, 1500); // Fade out after 1.5 seconds of no movement
-    };
 
     window.addEventListener('mousemove', handleMouseMove);
     
@@ -92,8 +110,10 @@ const AlbumCoverGrid = () => {
       }
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, []);
+  }, [fetchAndShuffleCovers, handleMouseMove]);
 
+  // Calculate tile positions for proximity-based effects
+  // This runs after album covers are loaded and DOM is updated
   useEffect(() => {
     const timer = setTimeout(() => {
       if (gridRef.current && gridRef.current.children.length > 0) {
@@ -106,7 +126,7 @@ const AlbumCoverGrid = () => {
         });
         setTilePositions(positions);
       }
-    }, 100);
+    }, 100); // Small delay to ensure DOM is fully rendered
 
     return () => clearTimeout(timer);
   }, [albumCovers]); 
@@ -116,30 +136,32 @@ const AlbumCoverGrid = () => {
       {/* Dark background overlay */}
       <div className="album-grid-overlay"></div>
       
-      {/* Album tiles grid */}
+      {/* Album tiles grid with proximity-based effects */}
       <div className="album-grid-inner" ref={gridRef}>
         {albumCovers.map((url, index) => {
           const tilePos = tilePositions[index] || { centerX: 0, centerY: 0 };
           
+          // Calculate distance from cursor to tile center for proximity effects
           const distance = Math.sqrt(
             Math.pow(tilePos.centerX - cursorPos.x, 2) + 
             Math.pow(tilePos.centerY - cursorPos.y, 2)
           );
           
+          // Define maximum distance for effect calculation
           const maxDistance = 300;
           const proximity = Math.min(1, distance / maxDistance);
           
-          // Calculate opacity based on distance and cursor movement
+          // Calculate opacity based on distance and cursor movement state
           let baseOpacity = 0;
           
           if (isCursorMoving && showTiles) {
             baseOpacity = Math.max(0, 1 - proximity);
           }
           
-          // Calculate scale and transform
-          const scale = 0.9 + (baseOpacity * 0.3);
-          const translateY = -(baseOpacity * 15);
-          const shadowSize = baseOpacity * 30;
+          // Calculate visual effects based on proximity
+          const scale = 0.9 + (baseOpacity * 0.3); // Scale up when close
+          const translateY = -(baseOpacity * 15); // Lift up when close
+          const shadowSize = baseOpacity * 30; // Add shadow when close
           
           const transform = `scale(${scale}) translateY(${translateY}px)`;
           const boxShadow = `0 8px ${shadowSize}px rgba(78, 161, 255, ${baseOpacity * 0.6})`;

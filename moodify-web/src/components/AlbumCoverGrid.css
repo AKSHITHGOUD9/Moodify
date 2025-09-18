@@ -1,4 +1,15 @@
-/* src/components/AlbumCoverGrid.css */
+/**
+ * AlbumCoverGrid Component Styles
+ * 
+ * Creates an interactive background grid of album covers with proximity-based effects.
+ * Features:
+ * - Full viewport coverage with fixed positioning
+ * - Dark overlay for contrast
+ * - Responsive grid layout
+ * - Smooth hover animations
+ * - Performance-optimized transforms
+ */
+
 .album-grid-container {
     position: fixed;
     top: 0;

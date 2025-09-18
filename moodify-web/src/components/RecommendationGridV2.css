@@ -1,4 +1,17 @@
-/* Fused Recommendation Container - Spotify Embed Style + Two Columns */
+/**
+ * RecommendationGridV2 Component Styles
+ * 
+ * Spotify-inspired recommendation interface with two-column layout.
+ * Features:
+ * - Album art collage header
+ * - Two-column track listing (History + New Discoveries)
+ * - Drag-and-drop reordering
+ * - Track selection with checkboxes
+ * - Responsive design
+ * - Smooth animations and transitions
+ */
+
+/* Main container with Spotify's signature styling */
 .fused-recommendation-container {
   width: 100%;
   max-width: 1200px;
@@ -144,7 +157,7 @@
   gap: 0;
   max-height: 500px;
   overflow-y: auto;
-  padding: 0 0 20px 0;
+  padding: 8px 0 20px 0;
   position: relative;
   z-index: 2;
 }
@@ -153,43 +166,47 @@
 .fused-track-item {
   display: flex;
   align-items: center;
-  padding: 8px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
   cursor: pointer;
-  min-height: 80px;
+  min-height: 72px;
+  gap: 16px;
+  border-radius: 4px;
+  margin: 0 8px;
 }
 
 .fused-track-item:hover {
   background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
 }
 
 .fused-track-item.selected {
   background: rgba(29, 185, 84, 0.1);
   border-left: 3px solid #1db954;
+  transform: translateX(0);
 }
 
 .track-number {
-  width: 24px;
+  width: 20px;
   text-align: center;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  margin-right: 16px;
   flex-shrink: 0;
 }
 
 .track-main-info {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   flex: 1;
   min-width: 0;
   gap: 12px;
 }
 
 .track-image {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 4px;
   overflow: hidden;
   flex-shrink: 0;
@@ -208,41 +225,48 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: rgba(255, 255, 255, 0.4);
 }
 
 .track-details {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 
 .track-name {
   color: white;
   font-size: 0.9rem;
   font-weight: 500;
-  margin: 0 0 4px 0;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .track-artist {
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.8rem;
-  margin: 0 0 2px 0;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .track-album {
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.75rem;
-  margin: 0 0 6px 0;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 /* Confidence Score and Popularity Bars */
@@ -250,56 +274,56 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .popularity-label, .confidence-label {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: rgba(255, 255, 255, 0.6);
   font-weight: 500;
-  min-width: 50px;
+  min-width: 45px;
 }
 
 .popularity-bar, .confidence-bar {
   flex: 1;
-  height: 3px;
+  height: 2px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  border-radius: 1px;
   overflow: hidden;
 }
 
 .popularity-fill, .confidence-fill {
   height: 100%;
   background: linear-gradient(90deg, #4ea1ff, #a855f7);
-  border-radius: 2px;
+  border-radius: 1px;
   transition: width 0.3s ease;
 }
 
 .popularity-text, .confidence-text {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: rgba(255, 255, 255, 0.8);
   font-weight: 600;
-  min-width: 30px;
+  min-width: 25px;
   text-align: right;
 }
 
 .track-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-right: 12px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .play-button {
   background: none;
   border: none;
   color: white;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,7 +351,7 @@
     box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.7);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(29, 185, 84, 0);
+    box-shadow: 0 0 0 8px rgba(29, 185, 84, 0);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(29, 185, 84, 0);
@@ -338,12 +362,12 @@
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
   padding: 4px;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -361,9 +385,9 @@
 
 .track-duration {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  min-width: 40px;
+  min-width: 35px;
   text-align: right;
   flex-shrink: 0;
 }
@@ -441,13 +465,15 @@
   }
   
   .fused-track-item {
-    padding: 8px 16px;
-    min-height: 70px;
+    padding: 10px 16px;
+    min-height: 65px;
+    gap: 12px;
+    margin: 0 4px;
   }
   
   .track-image {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
   }
   
   .track-name {
@@ -460,5 +486,26 @@
   
   .track-album {
     font-size: 0.7rem;
+  }
+  
+  .track-actions {
+    gap: 4px;
+  }
+  
+  .play-button {
+    width: 24px;
+    height: 24px;
+    font-size: 1rem;
+  }
+  
+  .select-button {
+    width: 20px;
+    height: 20px;
+    font-size: 0.8rem;
+  }
+  
+  .track-duration {
+    font-size: 0.7rem;
+    min-width: 30px;
   }
 }

@@ -1,37 +1,68 @@
 #!/bin/bash
 
-# Moodify Deployment Script
-# This script helps deploy the Moodify application
+"""
+Moodify Deployment and Setup Script
+===================================
+
+This script automates the complete setup and deployment process for the Moodify
+application. It handles dependency installation, environment configuration,
+and service initialization for both development and production environments.
+
+Features:
+- Comprehensive dependency checking
+- Automatic virtual environment setup
+- Environment file configuration
+- Frontend and backend setup
+- Production build support
+- Cross-platform compatibility
+
+Usage:
+    ./scripts/deploy.sh           # Development setup
+    ./scripts/deploy.sh --build   # Production build
+
+Author: Moodify Development Team
+Version: 1.0.0
+"""
 
 set -e  # Exit on any error
 
 echo "🎵 Moodify Deployment Script"
 echo "============================="
 
-# Check if we're in the right directory
+# =============================================================================
+# DIRECTORY VALIDATION
+# =============================================================================
+
+# Verify we're in the correct project directory
 if [ ! -f "README.md" ] || [ ! -d "backend" ] || [ ! -d "moodify-web" ]; then
     echo "❌ Error: Please run this script from the project root directory"
     exit 1
 fi
 
-# Function to check if command exists
+# =============================================================================
+# DEPENDENCY CHECKING
+# =============================================================================
+
+# Function to check if a command exists in the system PATH
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Check dependencies
 echo "🔍 Checking dependencies..."
 
+# Check for Python 3 (required for backend)
 if ! command_exists python3; then
     echo "❌ Python 3 is required but not installed"
     exit 1
 fi
 
+# Check for Node.js (required for frontend)
 if ! command_exists node; then
     echo "❌ Node.js is required but not installed"
     exit 1
 fi
 
+# Check for npm (Node package manager)
 if ! command_exists npm; then
     echo "❌ npm is required but not installed"
     exit 1
@@ -39,11 +70,14 @@ fi
 
 echo "✅ All dependencies found"
 
-# Setup backend
+# =============================================================================
+# BACKEND SETUP
+# =============================================================================
+
 echo "\n🐍 Setting up backend..."
 cd backend
 
-# Create virtual environment if it doesn't exist
+# Create Python virtual environment for dependency isolation
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
     python3 -m venv venv
@@ -53,12 +87,12 @@ fi
 echo "Activating virtual environment..."
 source venv/bin/activate
 
-# Install dependencies
+# Install Python dependencies
 echo "Installing Python dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Check if .env exists
+# Configure environment variables
 if [ ! -f ".env" ]; then
     echo "⚠️  Warning: .env file not found. Copying from env.txt..."
     if [ -f "env.txt" ]; then
@@ -72,27 +106,34 @@ fi
 
 cd ..
 
-# Setup frontend
+# =============================================================================
+# FRONTEND SETUP
+# =============================================================================
+
 echo "\n⚛️  Setting up frontend..."
 cd moodify-web
 
-# Install dependencies
+# Install Node.js dependencies
 echo "Installing Node.js dependencies..."
 npm install
 
-# Check if .env exists
+# Configure frontend environment variables
 if [ ! -f ".env" ]; then
     echo "Creating frontend .env file..."
     echo "VITE_BACKEND_URL=http://localhost:8000" > .env
 fi
 
-# Build for production (optional)
+# Build for production if requested
 if [ "$1" = "--build" ]; then
     echo "Building for production..."
     npm run build
 fi
 
 cd ..
+
+# =============================================================================
+# SETUP COMPLETION AND INSTRUCTIONS
+# =============================================================================
 
 echo "\n✅ Setup complete!"
 echo "\n🚀 To start the application:"

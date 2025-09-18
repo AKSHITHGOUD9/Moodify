@@ -1,11 +1,15 @@
-/* Performance optimizations */
+/* =============================================================================
+   PERFORMANCE OPTIMIZATIONS & ACCESSIBILITY
+   ============================================================================= */
+
+/* Universal box-sizing for consistent layout calculations */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
-/* Reduce motion for users who prefer it */
+/* Respect user's motion preferences for better accessibility */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -17,12 +21,16 @@
   }
 }
 
-/* Improve font rendering */
+/* Enhanced font rendering for crisp text display */
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+
+/* =============================================================================
+   MAIN APPLICATION LAYOUT
+   ============================================================================= */
 
 .app-container {
   position: relative;

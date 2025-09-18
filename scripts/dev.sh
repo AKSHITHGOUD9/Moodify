@@ -1,73 +1,116 @@
 #!/bin/bash
 
-# Moodify Development Startup Script
-# Starts both backend and frontend in development mode
+"""
+Moodify Development Startup Script
+=================================
 
-set -e
+This script starts both the backend and frontend services in development mode
+with hot reloading enabled. It includes comprehensive error checking, dependency
+validation, and graceful shutdown handling.
+
+Features:
+- Automatic dependency checking and installation
+- Background process management
+- Health check integration
+- Graceful shutdown on interruption
+- Cross-platform compatibility
+
+Usage:
+    ./scripts/dev.sh
+
+Author: Moodify Development Team
+Version: 1.0.0
+"""
+
+set -e  # Exit on any error
 
 echo "🎵 Starting Moodify in Development Mode"
 echo "====================================="
 
-# Check if we're in the right directory
+# =============================================================================
+# DIRECTORY VALIDATION
+# =============================================================================
+
+# Verify we're in the correct project directory
 if [ ! -f "README.md" ] || [ ! -d "backend" ] || [ ! -d "moodify-web" ]; then
     echo "❌ Error: Please run this script from the project root directory"
     exit 1
 fi
 
-# Function to cleanup background processes
+# =============================================================================
+# CLEANUP AND SIGNAL HANDLING
+# =============================================================================
+
+# Function to gracefully shutdown all background processes
 cleanup() {
     echo "\n🛑 Shutting down services..."
     jobs -p | xargs -r kill
     exit 0
 }
 
-# Set trap to cleanup on script exit
+# Set trap to cleanup on script exit or interruption
 trap cleanup SIGINT SIGTERM
 
-# Check if backend .env exists
+# =============================================================================
+# ENVIRONMENT CONFIGURATION VALIDATION
+# =============================================================================
+
+# Check if backend .env exists (required for Spotify API)
 if [ ! -f "backend/.env" ]; then
     echo "⚠️  Backend .env file not found. Please run setup first:"
     echo "   ./scripts/deploy.sh"
     exit 1
 fi
 
-# Check if frontend .env exists
+# Create frontend .env if it doesn't exist
 if [ ! -f "moodify-web/.env" ]; then
     echo "Creating frontend .env file..."
     echo "VITE_BACKEND_URL=http://localhost:8000" > moodify-web/.env
 fi
 
+# =============================================================================
+# BACKEND SERVICE STARTUP
+# =============================================================================
+
 echo "\n🐍 Starting backend server..."
 cd backend
 
-# Check if virtual environment exists
+# Verify Python virtual environment exists
 if [ ! -d "venv" ]; then
     echo "❌ Virtual environment not found. Please run setup first:"
     echo "   ./scripts/deploy.sh"
     exit 1
 fi
 
-# Start backend in background
+# Activate virtual environment and start FastAPI server
 source venv/bin/activate
 uvicorn main:app --reload --host 127.0.0.1 --port 8000 &
 BACKEND_PID=$!
 
 cd ..
 
+# =============================================================================
+# FRONTEND SERVICE STARTUP
+# =============================================================================
+
 echo "\n⚛️  Starting frontend server..."
 cd moodify-web
 
-# Check if node_modules exists
+# Install dependencies if node_modules doesn't exist
 if [ ! -d "node_modules" ]; then
     echo "Installing frontend dependencies..."
     npm install
 fi
 
-# Start frontend in background
+# Start Vite development server with hot reloading
 npm run dev &
 FRONTEND_PID=$!
 
 cd ..
+
+# =============================================================================
+# SERVICE STATUS AND HEALTH CHECK
+# =============================================================================
 
 echo "\n✅ Services starting up..."
 echo "\n🔗 URLs:"
@@ -76,17 +119,21 @@ echo "   Backend API: http://127.0.0.1:8000"
 echo "   API Docs: http://127.0.0.1:8000/docs"
 echo "\n⏳ Waiting for services to be ready..."
 
-# Wait a bit for services to start
+# Allow services time to initialize
 sleep 5
 
-# Run health check
+# Run health check to verify services are responding
 if [ -f "scripts/health-check.sh" ]; then
     ./scripts/health-check.sh
 fi
+
+# =============================================================================
+# RUNTIME MONITORING
+# =============================================================================
 
 echo "\n🎵 Moodify is running! Press Ctrl+C to stop all services."
 echo "\n📝 Logs will appear below:"
 echo "=====================================\n"
 
-# Wait for background processes
+# Wait for background processes to complete
 wait

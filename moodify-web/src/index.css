@@ -1,12 +1,22 @@
+/**
+ * Global CSS Variables and Base Styles
+ * 
+ * Defines the foundational styling for the entire application.
+ * Includes CSS custom properties, font settings, and accessibility features.
+ */
+
 :root {
+  /* Typography settings for optimal readability */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
+  /* Color scheme support for light/dark mode */
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
 
+  /* Font rendering optimizations for crisp text */
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

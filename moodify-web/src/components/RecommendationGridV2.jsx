@@ -1,10 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
 // import SpotifyPlayer from './SpotifyPlayer'; // Removed for now
 import './RecommendationGridV2.css';
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
-const RecommendationGridV2 = ({ query, onRecommendationsGenerated }) => {
+/**
+ * RecommendationGridV2 Component
+ * 
+ * Advanced music recommendation system with AI-powered track selection.
+ * Features:
+ * - Two-column layout: "From Your History" and "New Discoveries"
+ * - Drag-and-drop reordering within each column
+ * - Track selection/deselection with checkboxes
+ * - Spotify-style album art collage header
+ * - Real-time search suggestions
+ * - Playlist creation integration
+ * 
+ * Performance optimizations:
+ * - Debounced API calls
+ * - Memoized calculations
+ * - Efficient re-renders
+ * - AbortController for request cancellation
+ */
+const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, ref) => {
   const [historyRecs, setHistoryRecs] = useState([]);
   const [newRecs, setNewRecs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -15,7 +33,8 @@ const RecommendationGridV2 = ({ query, onRecommendationsGenerated }) => {
   // const [isPlaying, setIsPlaying] = useState(false);
   // const [playingTrackId, setPlayingTrackId] = useState(null);
 
-  const generateRecommendations = async () => {
+  // Generate AI-powered music recommendations with timeout protection
+  const generateRecommendations = useCallback(async () => {
     if (!query.trim() || hasGenerated) return;
 
     setLoading(true);
@@ -64,7 +83,7 @@ const RecommendationGridV2 = ({ query, onRecommendationsGenerated }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, hasGenerated, onRecommendationsGenerated]);
 
   // Reset when query changes
   useEffect(() => {
@@ -88,7 +107,8 @@ const RecommendationGridV2 = ({ query, onRecommendationsGenerated }) => {
     return () => clearTimeout(timeoutId);
   }, [query]); // Only depend on query, not hasGenerated
 
-  const handleTrackToggle = (trackId, source) => {
+  // Toggle track selection state for playlist creation
+  const handleTrackToggle = useCallback((trackId, source) => {
     if (source === 'history') {
       setHistoryRecs(prev => 
         prev.map(track => 
@@ -106,9 +126,10 @@ const RecommendationGridV2 = ({ query, onRecommendationsGenerated }) => {
         )
       );
     }
-  };
+  }, []);
 
-  const handleTrackReorder = (source, fromIndex, toIndex) => {
+  // Handle drag-and-drop reordering of tracks within each column
+  const handleTrackReorder = useCallback((source, fromIndex, toIndex) => {
     if (source === 'history') {
       setHistoryRecs(prev => {
         const newList = [...prev];
@@ -124,17 +145,25 @@ const RecommendationGridV2 = ({ query, onRecommendationsGenerated }) => {
         return newList;
       });
     }
-  };
+  }, []);
 
-  const getAllSelectedTracks = () => {
+  // Get all selected tracks from both columns for playlist creation
+  const getAllSelectedTracks = useCallback(() => {
     const selectedHistory = historyRecs.filter(track => track.selected);
     const selectedNew = newRecs.filter(track => track.selected);
     return [...selectedHistory, ...selectedNew];
-  };
+  }, [historyRecs, newRecs]);
 
-  const getSelectedTrackIds = () => {
+  // Get only the track IDs for API calls
+  const getSelectedTrackIds = useCallback(() => {
     return getAllSelectedTracks().map(track => track.id);
-  };
+  }, [getAllSelectedTracks]);
+
+  // Expose methods to parent component via ref
+  useImperativeHandle(ref, () => ({
+    getSelectedTrackIds,
+    getAllSelectedTracks
+  }), [getSelectedTrackIds, getAllSelectedTracks]);
 
   // const handleTrackPlay = (track) => {
   //   setCurrentTrack(track);
@@ -270,7 +299,7 @@ const RecommendationGridV2 = ({ query, onRecommendationsGenerated }) => {
       </div>
     </div>
   );
-};
+});
 
 const TrackItem = ({ track, index, source, onToggle, onReorder }) => {
   const [isDragging, setIsDragging] = useState(false);

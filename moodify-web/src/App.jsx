@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import "./App.css";
 
 import AlbumCoverGrid from "./components/AlbumCoverGrid";
@@ -70,7 +70,6 @@ export default function App() {
   const [useNewRecommendationSystem, setUseNewRecommendationSystem] = useState(true);
   const [recommendationData, setRecommendationData] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState(SEARCH_SUGGESTIONS);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
   // =========================================================================
@@ -138,7 +137,7 @@ export default function App() {
     }
   }, []);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setLoadingAnalytics(true);
     try {
       const res = await fetch(`${API}/api/top-tracks`, { credentials: "include" });
@@ -151,9 +150,9 @@ export default function App() {
     } finally {
       setLoadingAnalytics(false);
     }
-  };
+  }, []);
 
-  const loadPlaylists = async () => {
+  const loadPlaylists = useCallback(async () => {
     setLoadingPlaylists(true);
     try {
       const res = await fetch(`${API}/api/my-playlists`, { credentials: "include" });
@@ -166,14 +165,14 @@ export default function App() {
     } finally {
       setLoadingPlaylists(false);
     }
-  };
+  }, []);
 
-  const toggleDashboard = () => {
+  const toggleDashboard = useCallback(() => {
     if (!showDashboard && !analytics) {
       loadAnalytics();
     }
     setShowDashboard(!showDashboard);
-  };
+  }, [showDashboard, analytics, loadAnalytics]);
 
   /**
    * Generates track recommendations based on user mood.
@@ -229,21 +228,19 @@ export default function App() {
     }
   }, [mood]);
 
+  // Memoized tracks to use for playlist creation
+  const tracksToUse = useMemo(() => {
+    if (useNewRecommendationSystem && recommendationData) {
+      return recommendationData.getSelectedTrackIds ? recommendationData.getSelectedTrackIds() : [];
+    }
+    return trackIds;
+  }, [useNewRecommendationSystem, recommendationData, trackIds]);
+
   /**
    * Creates a Spotify playlist from the currently loaded recommendations.
    * This is a user-initiated action.
    */
   const createPlaylistFromRecs = async () => {
-    let tracksToUse = [];
-    
-    if (useNewRecommendationSystem && recommendationData) {
-      // Use selected tracks from the new recommendation system
-      tracksToUse = recommendationData.getSelectedTrackIds ? recommendationData.getSelectedTrackIds() : [];
-    } else {
-      // Use tracks from the old system
-      tracksToUse = trackIds;
-    }
-    
     if (tracksToUse.length === 0) {
       alert("No tracks selected for the playlist. Please select some songs first.");
       return;
@@ -281,6 +278,14 @@ export default function App() {
     setRecommendationData(data);
   };
 
+  // Memoized filtered suggestions for better performance
+  const filteredSuggestions = useMemo(() => {
+    if (!mood.trim()) return SEARCH_SUGGESTIONS;
+    return SEARCH_SUGGESTIONS.filter(suggestion =>
+      suggestion.toLowerCase().includes(mood.toLowerCase())
+    );
+  }, [mood]);
+
   // Search suggestions handling
   const handleSearchInputChange = useCallback((e) => {
     const value = e.target.value;
@@ -293,10 +298,6 @@ export default function App() {
     }
     
     if (value.trim().length > 0) {
-      const filtered = SEARCH_SUGGESTIONS.filter(suggestion =>
-        suggestion.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredSuggestions(filtered);
       setShowSuggestions(true);
       setSelectedSuggestionIndex(-1);
       
@@ -307,7 +308,6 @@ export default function App() {
       setTypingTimeout(timeout);
     } else {
       setShowSuggestions(false);
-      setFilteredSuggestions(SEARCH_SUGGESTIONS);
       // Clear recommendations when search is cleared
       setRecs([]);
       setTrackIds([]);
@@ -368,6 +368,9 @@ export default function App() {
   }, []);
 
   // Rotating quotes effect
+  // Memoized current quote for better performance
+  const currentQuote = useMemo(() => COOL_QUOTES[currentQuoteIndex], [currentQuoteIndex]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentQuoteIndex((prev) => (prev + 1) % COOL_QUOTES.length);
@@ -434,7 +437,7 @@ export default function App() {
                 <div className="center-content">
                   <h2 className="main-title">🎵 What's Your Vibe?</h2>
                   <div className="quote-container">
-                    <p className="floating-quote">{COOL_QUOTES[currentQuoteIndex]}</p>
+                    <p className="floating-quote">{currentQuote}</p>
                   </div>
                 </div>
 
