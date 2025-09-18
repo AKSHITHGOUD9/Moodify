@@ -65,5 +65,5 @@
 
 /* Smooth fade-in for tiles when cursor moves */
 .album-tile-wrapper {
-    transition: opacity 0.1s ease-out, transform 0.2s ease-out, box-shadow 0.1s ease-out;
+    transition: opacity 0.6s ease-out, transform 0.4s ease-out, box-shadow 0.4s ease-out;
 }

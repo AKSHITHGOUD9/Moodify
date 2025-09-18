@@ -16,6 +16,7 @@ import json
 import re
 import logging
 from fastapi.responses import JSONResponse
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -174,6 +175,451 @@ def enhanced_mood_analysis(query: str) -> Dict:
     
     return analysis
 
+async def get_user_music_history(sp) -> List[Dict]:
+    """
+    Get user's comprehensive music history for LLM analysis
+    """
+    try:
+        # First, verify authentication
+        if not sp or not hasattr(sp, 'current_user'):
+            logger.error("Spotify client not properly authenticated")
+            return []
+        
+        # Test authentication with a simple call
+        try:
+            user_info = await asyncio.to_thread(sp.current_user)
+            logger.info(f"Authenticated as user: {user_info.get('display_name', 'Unknown')}")
+        except Exception as e:
+            logger.error(f"Authentication failed: {e}")
+            return []
+        
+        history = []
+        
+        # Get top tracks from different time ranges
+        time_ranges = ['short_term', 'medium_term', 'long_term']
+        for time_range in time_ranges:
+            try:
+                top_tracks = await asyncio.to_thread(sp.current_user_top_tracks, time_range=time_range, limit=50)
+                for track in top_tracks['items']:
+                    history.append({
+                        'id': track['id'],
+                        'name': track['name'],
+                        'artists': [artist['name'] for artist in track['artists']],
+                        'album': track['album']['name'],
+                        'popularity': track['popularity'],
+                        'time_range': time_range
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to fetch {time_range} tracks: {e}")
+                continue
+        
+        # Get recently played tracks
+        try:
+            recent_tracks = await asyncio.to_thread(sp.current_user_recently_played, limit=50)
+            for item in recent_tracks['items']:
+                track = item['track']
+                history.append({
+                    'id': track['id'],
+                    'name': track['name'],
+                    'artists': [artist['name'] for artist in track['artists']],
+                    'album': track['album']['name'],
+                    'popularity': track['popularity'],
+                    'time_range': 'recent'
+                })
+        except Exception as e:
+            logger.warning(f"Failed to fetch recent tracks: {e}")
+        
+        # Get saved albums (might contain Telugu music)
+        try:
+            saved_albums = await asyncio.to_thread(sp.current_user_saved_albums, limit=50)
+            for album in saved_albums['items']:
+                try:
+                    album_tracks = await asyncio.to_thread(sp.album_tracks, album['album']['id'])
+                    for track in album_tracks['items']:
+                        history.append({
+                            'id': track['id'],
+                            'name': track['name'],
+                            'artists': [artist['name'] for artist in track['artists']],
+                            'album': album['album']['name'],
+                            'popularity': track.get('popularity', 0),
+                            'time_range': 'saved_album'
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to fetch tracks from album {album['album']['name']}: {e}")
+                    continue
+        except Exception as e:
+            logger.warning(f"Failed to fetch saved albums: {e}")
+        
+        # Get tracks from user's playlists (might contain Telugu music)
+        try:
+            playlists = await asyncio.to_thread(sp.current_user_playlists, limit=20)
+            for playlist in playlists['items']:
+                try:
+                    playlist_tracks = await asyncio.to_thread(sp.playlist_tracks, playlist['id'], limit=50)
+                    for item in playlist_tracks['items']:
+                        if item['track'] and item['track'].get('id'):
+                            track = item['track']
+                            history.append({
+                                'id': track['id'],
+                                'name': track['name'],
+                                'artists': [artist['name'] for artist in track['artists']],
+                                'album': track['album']['name'],
+                                'popularity': track.get('popularity', 0),
+                                'time_range': 'playlist'
+                            })
+                except Exception as e:
+                    logger.warning(f"Failed to fetch tracks from playlist {playlist['name']}: {e}")
+                    continue
+        except Exception as e:
+            logger.warning(f"Failed to fetch playlists: {e}")
+        
+        # Remove duplicates based on track ID
+        seen_ids = set()
+        unique_history = []
+        for track in history:
+            if track['id'] not in seen_ids:
+                seen_ids.add(track['id'])
+                unique_history.append(track)
+        
+        logger.info(f"Retrieved {len(unique_history)} unique tracks from user history")
+        return unique_history
+        
+    except Exception as e:
+        logger.error(f"Error getting user music history: {e}")
+        return []
+
+async def query_llm_for_history_selection(query: str, music_history: List[Dict]) -> List[str]:
+    """
+    Use Ollama LLM to select 10 songs from user's history that match the query
+    """
+    try:
+        # Prepare a diverse music history for the LLM (mix of different time periods and sources)
+        # Use intelligent selection based on query analysis
+        diverse_history = []
+        
+        # Analyze query for key concepts
+        query_lower = query.lower()
+        
+        # Language keywords - more comprehensive
+        language_keywords = {
+            'english': ['english', 'eng', 'american', 'british', 'usa', 'uk'],
+            'spanish': ['spanish', 'español', 'latino', 'latin', 'mexican', 'colombian'],
+            'telugu': ['telugu', 'telugu', 'andhra', 'hyderabad'],
+            'hindi': ['hindi', 'bollywood', 'india', 'indian', 'desi'],
+            'tamil': ['tamil', 'tamil', 'chennai', 'tamilnadu'],
+            'kannada': ['kannada', 'kannada', 'bangalore', 'karnataka'],
+            'french': ['french', 'français', 'france', 'paris'],
+            'german': ['german', 'deutsch', 'germany', 'berlin'],
+            'japanese': ['japanese', 'japan', 'tokyo', 'anime'],
+            'korean': ['korean', 'k-pop', 'korea', 'seoul']
+        }
+        
+        # Genre keywords
+        genre_keywords = {
+            'pop': ['pop', 'popular'],
+            'rock': ['rock', 'alternative', 'indie'],
+            'classical': ['classical', 'orchestral', 'symphony'],
+            'jazz': ['jazz', 'blues'],
+            'electronic': ['electronic', 'edm', 'techno', 'house'],
+            'folk': ['folk', 'acoustic'],
+            'hip_hop': ['hip hop', 'rap', 'hip-hop'],
+            'country': ['country', 'western'],
+            'reggae': ['reggae', 'ska'],
+            'rnb': ['r&b', 'rnb', 'soul']
+        }
+        
+        # Mood keywords
+        mood_keywords = {
+            'happy': ['happy', 'upbeat', 'cheerful', 'energetic'],
+            'sad': ['sad', 'melancholy', 'emotional', 'depressing'],
+            'calm': ['calm', 'peaceful', 'relaxing', 'chill'],
+            'romantic': ['romantic', 'love', 'romantic'],
+            'angry': ['angry', 'aggressive', 'intense'],
+            'nostalgic': ['nostalgic', 'old', 'vintage', 'retro']
+        }
+        
+        # Era keywords
+        era_keywords = {
+            '80s': ['80s', 'eighties', '1980s'],
+            '90s': ['90s', 'nineties', '1990s'],
+            '2000s': ['2000s', '2000s', '2000s'],
+            'recent': ['recent', 'new', 'latest', 'current'],
+            'old': ['old', 'classic', 'vintage', 'traditional']
+        }
+        
+        # Find matching tracks based on query analysis with scoring
+        matching_tracks = []
+        other_tracks = []
+        
+        for track in music_history:
+            track_name = track['name'].lower()
+            artists = ' '.join(track['artists']).lower()
+            album = track['album'].lower()
+            track_text = f"{track_name} {artists} {album}"
+            
+            # Calculate match score
+            match_score = 0
+            match_reasons = []
+            
+            # Check for language matches (highest priority)
+            for lang, keywords in language_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    if any(keyword in track_text for keyword in keywords):
+                        match_score += 10  # High score for language match
+                        match_reasons.append(f"language:{lang}")
+                        break
+            
+            # Check for genre matches
+            for genre, keywords in genre_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    if any(keyword in track_text for keyword in keywords):
+                        match_score += 8  # High score for genre match
+                        match_reasons.append(f"genre:{genre}")
+                        break
+            
+            # Check for mood matches
+            for mood, keywords in mood_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    if any(keyword in track_text for keyword in keywords):
+                        match_score += 6  # Medium score for mood match
+                        match_reasons.append(f"mood:{mood}")
+                        break
+            
+            # Check for era matches
+            for era, keywords in era_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    if any(keyword in track_text for keyword in keywords):
+                        match_score += 4  # Medium score for era match
+                        match_reasons.append(f"era:{era}")
+                        break
+            
+            # Check for direct text matches in track name or artist
+            query_words = query_lower.split()
+            for word in query_words:
+                if len(word) > 2:  # Only consider words longer than 2 characters
+                    if word in track_name:
+                        match_score += 5  # High score for direct name match
+                        match_reasons.append(f"name_match:{word}")
+                    elif word in artists:
+                        match_score += 3  # Medium score for artist match
+                        match_reasons.append(f"artist_match:{word}")
+            
+            # Add track with match score and reasons
+            track_with_score = {
+                **track,
+                'match_score': match_score,
+                'match_reasons': match_reasons
+            }
+            
+            if match_score > 0:
+                matching_tracks.append(track_with_score)
+            else:
+                other_tracks.append(track_with_score)
+        
+        # Sort matching tracks by score (highest first)
+        matching_tracks.sort(key=lambda x: x['match_score'], reverse=True)
+        
+        # Select diverse history: prioritize matching tracks, then add others
+        if matching_tracks:
+            # Take up to 15 matching tracks, then add others
+            diverse_history = matching_tracks[:15] + other_tracks[:10]
+            logger.info(f"Found {len(matching_tracks)} matching tracks for query: {query}")
+            logger.info(f"Top matching tracks:")
+            for i, track in enumerate(matching_tracks[:5]):
+                logger.info(f"  {i+1}. {track['name']} by {track['artists'][0]} (score: {track['match_score']}, reasons: {track['match_reasons']})")
+        else:
+            # If no specific matches, use diverse selection
+            logger.info(f"No specific matches found for query: {query}, using diverse selection")
+            if len(music_history) > 50:
+                step = len(music_history) // 25
+                for i in range(0, len(music_history), step):
+                    if len(diverse_history) >= 25:
+                        break
+                    diverse_history.append(music_history[i])
+            else:
+                diverse_history = music_history[:25]
+        
+        # Ensure we have enough tracks for LLM
+        if len(diverse_history) < 10:
+            # Add more tracks from the original history
+            remaining_tracks = [track for track in music_history if track not in diverse_history]
+            diverse_history.extend(remaining_tracks[:25-len(diverse_history)])
+        
+        logger.info(f"Selected {len(diverse_history)} tracks for LLM analysis")
+        
+        history_text = "\n".join([
+            f"{track['name']} by {', '.join(track['artists'])} ({track['id']})"
+            for track in diverse_history
+        ])
+        
+        prompt = f"""Select exactly 10 songs from the user's music history that best match this query: "{query}"
+
+MATCHING CRITERIA:
+1. Language match (if query mentions specific language)
+2. Genre match (pop, rock, classical, etc.)
+3. Mood match (happy, sad, energetic, etc.)
+4. Era match (old, new, 80s, 90s, etc.)
+5. Artist name match
+6. Song title relevance
+
+USER'S MUSIC HISTORY:
+{history_text}
+
+INSTRUCTIONS:
+- Analyze the query and find the most relevant songs
+- Prioritize songs that match multiple criteria
+- If query mentions "hindi" or "bollywood", prioritize Hindi songs
+- If query mentions "telugu", prioritize Telugu songs
+- If query mentions "old", prioritize older songs
+- Return exactly 10 track IDs in JSON format
+
+RESPONSE FORMAT (JSON only, no other text):
+["id1","id2","id3","id4","id5","id6","id7","id8","id9","id10"]"""
+        
+        # Call Ollama
+        ollama_url = "http://localhost:11434/api/generate"
+        payload = {
+            "model": "llama3.2:3b",  # Using the better 3B model
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.3,
+                "top_p": 0.9,
+                "num_ctx": 8192,  # Increase context window
+                "num_predict": 500  # Increase output length for complete JSON
+            }
+        }
+        
+        response = requests.post(ollama_url, json=payload, timeout=60)  # Increase timeout
+        response.raise_for_status()
+        
+        result = response.json()
+        llm_response = result.get('response', '').strip()
+        
+        # Parse the JSON response with better error handling
+        try:
+            # Clean up the response - remove any markdown formatting and extra text
+            cleaned_response = llm_response.replace('```json', '').replace('```', '').strip()
+            
+            # Find the JSON array in the response
+            json_start = cleaned_response.find('[')
+            json_end = cleaned_response.rfind(']') + 1
+            
+            if json_start != -1 and json_end != -1:
+                json_str = cleaned_response[json_start:json_end]
+                
+                # Extract only the valid JSON lines
+                lines = json_str.split('\n')
+                json_lines = []
+                for line in lines:
+                    line = line.strip()
+                    # Keep lines that look like JSON array elements
+                    if (line.startswith('[') or 
+                        line.startswith('"') or 
+                        line.startswith(',') or 
+                        line.startswith(']') or
+                        line.startswith('    "') or
+                        line.startswith('  "')):
+                        json_lines.append(line)
+                
+                json_str = '\n'.join(json_lines)
+                
+                # Fix common JSON issues
+                if not json_str.startswith('['):
+                    json_str = '[' + json_str
+                if not json_str.endswith(']'):
+                    json_str = json_str + ']'
+                
+                # Remove trailing commas
+                json_str = json_str.replace(',]', ']')
+                json_str = json_str.replace(',\n]', '\n]')
+                json_str = json_str.replace(',\n  ]', '\n]')
+                
+                # Try to fix incomplete JSON by finding the last complete ID
+                if not json_str.endswith(']'):
+                    # Find the last complete ID (22 characters)
+                    import re
+                    id_matches = re.findall(r'"([a-zA-Z0-9]{22})"', json_str)
+                    if id_matches:
+                        # Reconstruct JSON with only complete IDs
+                        json_str = '[' + ','.join([f'"{id}"' for id in id_matches]) + ']'
+                
+                selected_ids = json.loads(json_str)
+                
+                # Validate that we got valid IDs
+                if isinstance(selected_ids, list) and len(selected_ids) > 0:
+                    # Filter out any invalid IDs (Spotify IDs are 22 characters)
+                    valid_ids = [id for id in selected_ids if isinstance(id, str) and len(id) == 22]
+                    
+                    if len(valid_ids) >= 5:  # At least 5 valid IDs
+                        # Take up to 10 valid IDs
+                        final_ids = valid_ids[:10]
+                        logger.info(f"LLM selected {len(final_ids)} valid track IDs from history")
+                        return final_ids
+                    else:
+                        logger.warning(f"LLM returned only {len(valid_ids)} valid IDs")
+                        # Fallback: return first 10 tracks from history
+                        return [track['id'] for track in music_history[:10]]
+                else:
+                    raise ValueError("Invalid JSON array format")
+            else:
+                raise ValueError("No JSON array found in LLM response")
+                
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Failed to parse LLM response: {e}")
+            logger.error(f"LLM response: {llm_response}")
+            # Fallback: return first 10 tracks from history
+            return [track['id'] for track in music_history[:10]]
+            
+    except Exception as e:
+        logger.error(f"Error querying LLM: {e}")
+        # Fallback: return first 10 tracks from history
+        return [track['id'] for track in music_history[:10]]
+
+async def get_spotify_recommendations(sp, seed_track_ids: List[str], query: str) -> List[Dict]:
+    """
+    Use Spotify's recommendation API with seed tracks to get new recommendations
+    """
+    try:
+        # Get recommendations using the seed tracks
+        recommendations = await asyncio.to_thread(
+            sp.recommendations,
+            seed_tracks=seed_track_ids[:5],  # Spotify allows max 5 seed tracks
+            limit=20,
+            market='US'
+        )
+        
+        # Process the recommendations
+        new_tracks = []
+        if isinstance(recommendations, dict) and 'tracks' in recommendations:
+            for track in recommendations['tracks']:
+                if track and track.get('id'):
+                    track_data = {
+                        'id': track['id'],
+                        'name': track['name'],
+                        'artists': [artist['name'] for artist in track.get('artists', [])],
+                        'album': track.get('album', {}).get('name', 'Unknown Album'),
+                        'album_image': None,
+                        'external_url': track.get('external_urls', {}).get('spotify'),
+                        'preview_url': track.get('preview_url'),
+                        'popularity': track.get('popularity', 0)
+                    }
+                    
+                    # Get album image
+                    album_images = track.get('album', {}).get('images', [])
+                    if album_images:
+                        track_data['album_image'] = album_images[0]['url']
+                    
+                    new_tracks.append(track_data)
+        
+        logger.info(f"Generated {len(new_tracks)} new recommendations from Spotify")
+        return new_tracks
+        
+    except Exception as e:
+        logger.error(f"Error getting Spotify recommendations: {e}")
+        # Fallback: return empty list instead of crashing
+        return []
+
 async def get_user_listening_profile(sp) -> Dict:
     """
     Analyze user's listening profile to understand their preferences with async optimization
@@ -239,8 +685,8 @@ def get_spotify_oauth():
     return SpotifyOAuth(
         client_id=os.getenv("SPOTIFY_CLIENT_ID"),
         client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
-        redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI"),
-        scope="user-read-private user-read-email user-top-read user-read-recently-played playlist-read-private playlist-modify-public playlist-modify-private"
+        redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI", "https://localhost:8000/callback"),
+        scope="user-read-private user-read-email user-top-read user-read-recently-played playlist-read-private playlist-modify-public playlist-modify-private user-read-playback-state user-modify-playback-state user-read-playback-position user-library-read"
     )
 
 async def _ensure_token(request: Request):
@@ -248,28 +694,43 @@ async def _ensure_token(request: Request):
     session = request.session
     print(f"DEBUG: _ensure_token called with session keys: {list(session.keys())}")
     
-    if "spotify_token_info" not in session:
-        print(f"DEBUG: No spotify_token_info in session")
-        return None
+    # First check session
+    if "spotify_token_info" in session:
+        token_info = session["spotify_token_info"]
+        print(f"DEBUG: Found token_info in session with keys: {list(token_info.keys())}")
+        
+        # Check if token is expired
+        if is_token_expired(token_info):
+            print(f"DEBUG: Session token is expired, attempting refresh")
+            try:
+                oauth = get_spotify_oauth()
+                token_info = oauth.refresh_access_token(token_info["refresh_token"])
+                session["spotify_token_info"] = token_info
+                print(f"DEBUG: Token refreshed successfully")
+            except Exception as e:
+                print(f"Error refreshing token: {e}")
+                return None
+        else:
+            print(f"DEBUG: Session token is still valid")
+        
+        return spotipy.Spotify(auth=token_info["access_token"])
     
-    token_info = session["spotify_token_info"]
-    print(f"DEBUG: Found token_info with keys: {list(token_info.keys())}")
-    
-    # Check if token is expired
-    if is_token_expired(token_info):
-        print(f"DEBUG: Token is expired, attempting refresh")
-        try:
-            oauth = get_spotify_oauth()
-            token_info = oauth.refresh_access_token(token_info["refresh_token"])
-            session["spotify_token_info"] = token_info
-            print(f"DEBUG: Token refreshed successfully")
-        except Exception as e:
-            print(f"Error refreshing token: {e}")
+    # If no session token, try to use cached token
+    print(f"DEBUG: No spotify_token_info in session, checking cached token")
+    try:
+        oauth = get_spotify_oauth()
+        cached_token = oauth.get_cached_token()
+        if cached_token and not is_token_expired(cached_token):
+            print(f"DEBUG: Using cached token")
+            # Store in session for future requests
+            session["spotify_token_info"] = cached_token
+            return spotipy.Spotify(auth=cached_token["access_token"])
+        else:
+            print(f"DEBUG: No valid cached token found")
             return None
-    else:
-        print(f"DEBUG: Token is still valid")
-    
-    return spotipy.Spotify(auth=token_info["access_token"])
+    except Exception as e:
+        print(f"Error getting cached token: {e}")
+        return None
 
 @app.get("/")
 async def root():
@@ -282,6 +743,9 @@ async def health():
 @app.get("/login")
 async def login(request: Request):
     """Start Spotify OAuth flow"""
+    # Clear any existing session to force fresh authentication
+    request.session.clear()
+    
     oauth = get_spotify_oauth()
     auth_url = oauth.get_authorize_url()
     
@@ -334,6 +798,210 @@ async def get_user_profile(request: Request):
     except Exception as e:
         print(f"DEBUG: Error getting user: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/logout")
+async def logout(request: Request):
+    """Logout user and clear session"""
+    try:
+        # Clear the session
+        request.session.clear()
+        
+        # Clear the cached token file
+        import os
+        cache_file = os.path.join(os.path.dirname(__file__), '.cache')
+        if os.path.exists(cache_file):
+            os.remove(cache_file)
+            logger.info("Cleared cached token file")
+        
+        logger.info("User logged out successfully")
+        return {"message": "Logged out successfully"}
+    except Exception as e:
+        logger.error(f"Error during logout: {e}")
+        raise HTTPException(status_code=500, detail="Failed to logout")
+
+@app.get("/api/spotify-token")
+async def get_spotify_token(request: Request):
+    """Get Spotify access token for Web SDK"""
+    try:
+        sp = await _ensure_token(request)
+        if not sp:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        # Get the current token from the session
+        session = request.session
+        if "spotify_token_info" in session:
+            token_info = session["spotify_token_info"]
+            return {"access_token": token_info["access_token"]}
+        else:
+            raise HTTPException(status_code=401, detail="No token found")
+    except Exception as e:
+        logger.error(f"Error getting Spotify token: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get token")
+
+@app.post("/recommend-v2")
+async def recommend_tracks_v2(request: Request, query: Dict):
+    """
+    New LLM-based recommendation system:
+    1. LLM selects 10 songs from user's history that match the query
+    2. Spotify uses those songs as seed tracks to generate new recommendations
+    """
+    sp = await _ensure_token(request)
+    if not sp:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        user_query = query.get("query", "").strip()
+        if not user_query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        
+        logger.info(f"Processing recommendation request: '{user_query}'")
+        
+        # Step 1: Get user's music history
+        music_history = await get_user_music_history(sp)
+        if not music_history:
+            # For new accounts with no history, use search-based recommendations
+            logger.info("No music history found, using search-based recommendations")
+            try:
+                # Search for popular tracks based on the query
+                search_results = await asyncio.to_thread(
+                    sp.search, 
+                    q=f"{user_query} music", 
+                    type='track', 
+                    limit=20,
+                    market='US'
+                )
+                
+                if search_results and 'tracks' in search_results and search_results['tracks']['items']:
+                    tracks = search_results['tracks']['items']
+                    return {
+                        "user_history_recs": [],  # Empty for new accounts
+                        "new_recs": [
+                            {
+                                "id": track["id"],
+                                "name": track["name"],
+                                "artists": [artist["name"] for artist in track["artists"]],
+                                "album": track["album"]["name"],
+                                "preview_url": track.get("preview_url"),
+                                "external_urls": track.get("external_urls", {}),
+                                "images": track["album"].get("images", [])
+                            }
+                            for track in tracks
+                        ]
+                    }
+                else:
+                    raise HTTPException(status_code=400, detail="No music history found and unable to generate recommendations. Please listen to some music first or try a different search term.")
+            except Exception as e:
+                logger.error(f"Search-based recommendation failed: {e}")
+                raise HTTPException(status_code=400, detail="No music history found. Please listen to some music first.")
+        
+        # Step 2: Use LLM to select 10 songs from history
+        selected_track_ids = await query_llm_for_history_selection(user_query, music_history)
+        
+        # Step 3: Get the full track details for selected history songs
+        history_tracks = []
+        for track in music_history:
+            if track['id'] in selected_track_ids:
+                # Get additional track details
+                try:
+                    track_details = await asyncio.to_thread(sp.track, track['id'])
+                    history_tracks.append({
+                        'id': track['id'],
+                        'name': track['name'],
+                        'artists': track['artists'],
+                        'album': track['album'],
+                        'album_image': track_details.get('album', {}).get('images', [{}])[0].get('url'),
+                        'external_url': track_details.get('external_urls', {}).get('spotify'),
+                        'preview_url': track_details.get('preview_url'),
+                        'popularity': track['popularity'],
+                        'source': 'history'
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to get details for track {track['id']}: {e}")
+                    # Add basic track info if detailed fetch fails
+                    history_tracks.append({
+                        'id': track['id'],
+                        'name': track['name'],
+                        'artists': track['artists'],
+                        'album': track['album'],
+                        'album_image': None,
+                        'external_url': None,
+                        'preview_url': None,
+                        'popularity': track['popularity'],
+                        'source': 'history'
+                    })
+        
+        # Step 4: Use selected tracks as seeds for Spotify recommendations
+        new_tracks = await get_spotify_recommendations(sp, selected_track_ids, user_query)
+        
+        # If Spotify recommendations failed, use search as fallback
+        if not new_tracks:
+            logger.warning("Spotify recommendations failed, using search fallback")
+            try:
+                # Try multiple search strategies
+                search_queries = [
+                    user_query,
+                    f"{user_query} music",
+                    f"{user_query} songs",
+                    "popular music"  # Fallback to popular music
+                ]
+                
+                for search_query in search_queries:
+                    try:
+                        search_results = await asyncio.to_thread(sp.search, search_query, type='track', limit=20)
+                        if search_results and 'tracks' in search_results and search_results['tracks']['items']:
+                            for track in search_results['tracks']['items']:
+                                if track and track.get('id') and len(new_tracks) < 20:
+                                    track_data = {
+                                        'id': track['id'],
+                                        'name': track['name'],
+                                        'artists': [artist['name'] for artist in track.get('artists', [])],
+                                        'album': track.get('album', {}).get('name', 'Unknown Album'),
+                                        'album_image': None,
+                                        'external_url': track.get('external_urls', {}).get('spotify'),
+                                        'preview_url': track.get('preview_url'),
+                                        'popularity': track.get('popularity', 0)
+                                    }
+                                    
+                                    # Get album image
+                                    album_images = track.get('album', {}).get('images', [])
+                                    if album_images:
+                                        track_data['album_image'] = album_images[0]['url']
+                                    
+                                    new_tracks.append(track_data)
+                            
+                            if new_tracks:
+                                logger.info(f"Search fallback successful with query: {search_query}")
+                                break
+                    except Exception as e:
+                        logger.warning(f"Search query '{search_query}' failed: {e}")
+                        continue
+                        
+            except Exception as e:
+                logger.error(f"All search fallbacks failed: {e}")
+        
+        # Add source indicator to new tracks
+        for track in new_tracks:
+            track['source'] = 'new'
+        
+        logger.info(f"Generated {len(history_tracks)} history recommendations and {len(new_tracks)} new recommendations")
+        
+        return JSONResponse({
+            "query": user_query,
+            "user_history_recs": history_tracks,
+            "new_recs": new_tracks,
+            "total_history": len(history_tracks),
+            "total_new": len(new_tracks),
+            "analysis": {
+                "method": "LLM + Spotify Seeds",
+                "description": f"Selected {len(selected_track_ids)} songs from your history using AI, then generated {len(new_tracks)} new recommendations based on those selections."
+            }
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in recommendations v2: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate recommendations")
 
 @app.post("/recommend")
 async def recommend_tracks(request: Request, query: Dict, background_tasks: BackgroundTasks):
@@ -409,6 +1077,7 @@ async def recommend_tracks(request: Request, query: Dict, background_tasks: Back
                 sp.recommendations,
                 seed_genres=seed_genres[:2],  # Use max 2 genres for better results
                 limit=25,  # Get a few extra for filtering
+                market='US',  # Add market parameter
                 **{k: v for k, v in audio_features.items() if v is not None}
             )
         except Exception as rec_error:
@@ -685,7 +1354,7 @@ async def get_album_covers(request: Request):
         
         for time_range in time_ranges:
             try:
-                top_tracks = await asyncio.to_thread(sp.current_user_top_tracks, time_range=time_range, limit=100)
+                top_tracks = await asyncio.to_thread(sp.current_user_top_tracks, time_range=time_range, limit=50)
                 for track in top_tracks['items']:
                     if track['album']['images']:
                         album_covers.add(track['album']['images'][0]['url'])
@@ -695,7 +1364,7 @@ async def get_album_covers(request: Request):
         
         # Get recent tracks with higher limit
         try:
-            recent_tracks = await asyncio.to_thread(sp.current_user_recently_played, limit=100)
+            recent_tracks = await asyncio.to_thread(sp.current_user_recently_played, limit=50)
             for track in recent_tracks['items']:
                 if track['track']['album']['images']:
                     album_covers.add(track['track']['album']['images'][0]['url'])
@@ -729,7 +1398,7 @@ async def get_album_covers(request: Request):
         # If still not enough, get new releases as fallback
         if len(album_covers) < 200:
             try:
-                new_releases = await asyncio.to_thread(sp.new_releases, limit=100)
+                new_releases = await asyncio.to_thread(sp.new_releases, limit=50)
                 for album in new_releases['albums']['items']:
                     if album['images']:
                         album_covers.add(album['images'][0]['url'])

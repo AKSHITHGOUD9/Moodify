@@ -31,8 +31,7 @@ const AlbumCoverGrid = () => {
       const shuffledUrls = data.urls.sort(() => Math.random() - 0.5);
       
       // Calculate how many tiles we need to fill the screen
-      // With 100px tiles and 20px gaps, we need more tiles for full coverage
-      const neededTiles = 1200; // Increased for better coverage
+      const neededTiles = 800;
       
       // If we don't have enough unique covers, duplicate and shuffle
       let finalUrls = [...shuffledUrls];
@@ -45,7 +44,7 @@ const AlbumCoverGrid = () => {
     } catch (e) {
       console.error("Error fetching album covers:", e);
       // Fallback: create placeholder covers if API fails
-      const placeholderCovers = Array.from({ length: 1200 }, (_, i) => 
+      const placeholderCovers = Array.from({ length: 800 }, (_, i) => 
         `https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+${i + 1}`
       );
       setAlbumCovers(placeholderCovers);
@@ -53,7 +52,7 @@ const AlbumCoverGrid = () => {
   };
 
   useEffect(() => {
-    fetchAndShuffleCovers(); // Initial load only - no shuffling
+    fetchAndShuffleCovers();
 
     const handleMouseMove = (e) => {
       const now = Date.now();
@@ -68,9 +67,9 @@ const AlbumCoverGrid = () => {
       }
       showTimeout.current = setTimeout(() => {
         setShowTiles(true);
-      }, 0.5); // Small delay for fluid effect
+      }, 100); // Small delay for fluid effect
       
-      // Clear existing timeout
+      // Clear existing fade-out timeout
       if (fadeTimeout.current) {
         clearTimeout(fadeTimeout.current);
       }
@@ -78,7 +77,7 @@ const AlbumCoverGrid = () => {
       // Set new timeout for fade out
       fadeTimeout.current = setTimeout(() => {
         setIsCursorMoving(false);
-        setShowTiles(false);
+        setShowTiles(false); // Hide tiles completely when cursor stops
       }, 1500); // Fade out after 1.5 seconds of no movement
     };
 
@@ -127,25 +126,24 @@ const AlbumCoverGrid = () => {
             Math.pow(tilePos.centerY - cursorPos.y, 2)
           );
           
-          const maxDistance = 400; // Increased highlight radius
+          const maxDistance = 300;
           const proximity = Math.min(1, distance / maxDistance);
           
           // Calculate opacity based on distance and cursor movement
           let baseOpacity = 0;
           
-          // Only show tiles when cursor is moving and showTiles is true
           if (isCursorMoving && showTiles) {
             baseOpacity = Math.max(0, 1 - proximity);
           }
           
           // Calculate scale and transform
-          const scale = 0.8 + (baseOpacity * 0.4); // Scale from 0.8 to 1.2
-          const translateY = -(baseOpacity * 20);
-          const shadowSize = baseOpacity * 40;
+          const scale = 0.9 + (baseOpacity * 0.3);
+          const translateY = -(baseOpacity * 15);
+          const shadowSize = baseOpacity * 30;
           
           const transform = `scale(${scale}) translateY(${translateY}px)`;
-          const boxShadow = `0 10px ${shadowSize}px rgba(78, 161, 255, ${baseOpacity * 0.8})`;
-          const zIndex = Math.round(1000 - distance);
+          const boxShadow = `0 8px ${shadowSize}px rgba(78, 161, 255, ${baseOpacity * 0.6})`;
+          const zIndex = Math.round(500 - distance);
           
           return (
             <div
@@ -155,8 +153,10 @@ const AlbumCoverGrid = () => {
                 transform,
                 boxShadow,
                 zIndex,
-                opacity: baseOpacity > 0.05 ? baseOpacity : 0, // Hide tiles when cursor stops or too far
-                transition: 'opacity 0.6s ease-out, transform 0.4s ease-out, box-shadow 0.4s ease-out',
+                opacity: baseOpacity > 0.02 ? baseOpacity : 0,
+                transition: isCursorMoving 
+                  ? 'opacity 0.1s ease-out, transform 0.2s ease-out, box-shadow 0.2s ease-out'
+                  : 'opacity 0.5s ease-out, transform 0.3s ease-out, box-shadow 0.3s ease-out',
               }}
             >
               <div className="album-tile-content">

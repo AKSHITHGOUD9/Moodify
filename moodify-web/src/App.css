@@ -241,27 +241,39 @@ body {
   margin: 0;
   font-weight: 400;
   animation: smoothFade 4s ease-in-out infinite;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.quote-container {
+  position: relative;
+  height: 2rem;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @keyframes smoothFade {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(15px) scale(0.95);
   }
 
-  15% {
+  20% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 
-  85% {
+  80% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 
   100% {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-15px) scale(0.95);
   }
 }
 
@@ -866,6 +878,18 @@ r Profile Dropdown with Close Button */
 
 .profile-action-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.profile-action-btn.logout-btn {
+  background: rgba(255, 59, 48, 0.1);
+  border-color: rgba(255, 59, 48, 0.3);
+  color: #ff3b30;
+}
+
+.profile-action-btn.logout-btn:hover {
+  background: rgba(255, 59, 48, 0.2);
+  border-color: rgba(255, 59, 48, 0.5);
   color: #ffffff;
 }
 
@@ -1854,11 +1878,11 @@ r Profile Dropdown with Close Button */
 }
 
 .chatgpt-send-btn.ready {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, #4ea1ff, #a855f7);
+  color: white;
   cursor: pointer;
   box-shadow: 0 0 20px rgba(78, 161, 255, 0.2);
-  animation: glitterPulse 2s ease-in-out infinite;
+  animation: readyPulse 2s ease-in-out infinite;
 }
 
 .chatgpt-send-btn.ready:hover {
@@ -1869,9 +1893,10 @@ r Profile Dropdown with Close Button */
 }
 
 .chatgpt-send-btn.loading {
-  background: rgba(168, 85, 247, 0.2);
-  color: rgba(168, 85, 247, 0.9);
+  background: linear-gradient(135deg, #a855f7, #4ea1ff);
+  color: white;
   cursor: pointer;
+  animation: loadingSpin 1s linear infinite;
 }
 
 .chatgpt-send-btn.loading:hover {
@@ -1904,6 +1929,14 @@ r Profile Dropdown with Close Button */
   transform: scale(1); /* Keep pause centered */
 }
 
+.chatgpt-send-btn.ready .play-icon {
+  animation: playBounce 0.6s ease-in-out;
+}
+
+.chatgpt-send-btn.loading .pause-icon {
+  animation: pausePulse 0.8s ease-in-out infinite;
+}
+
 /* Loading spinner */
 .loading-spinner {
   width: 18px;
@@ -1925,10 +1958,48 @@ r Profile Dropdown with Close Button */
   100% { transform: rotate(360deg); }
 }
 
-/* Disabled state - but we don't disable the button anymore */
-.chatgpt-send-btn:disabled {
-  /* No disabled styles - button is always interactive */
+/* Play/Pause Animation Keyframes */
+@keyframes readyPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(78, 161, 255, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(78, 161, 255, 0);
+    transform: scale(1.05);
+  }
 }
+
+@keyframes loadingSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes playBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes pausePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.9);
+  }
+}
+
+
 
 /* Mobile responsive for ChatGPT input */
 @media (max-width: 768px) {
@@ -1994,4 +2065,117 @@ r Profile Dropdown with Close Button */
   align-items: stretch;
   /* Increased space below the AI analysis cards */
   margin-bottom: 4rem;
+}
+
+/* Search Suggestions Dropdown */
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-top: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+  background: rgba(78, 161, 255, 0.1);
+  border-left: 3px solid #4ea1ff;
+}
+
+.suggestion-icon {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.suggestion-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+/* Information Tooltip */
+.toggle-area {
+  position: relative;
+}
+
+.info-icon {
+  margin-left: 8px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.info-icon:hover {
+  opacity: 1;
+}
+
+.info-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-top: 8px;
+  padding: 16px;
+  z-index: 1000;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  max-width: 300px;
+}
+
+.info-icon:hover + .info-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.tooltip-content h4 {
+  color: #4ea1ff;
+  font-size: 0.9rem;
+  margin: 0 0 8px 0;
+  font-weight: 600;
+}
+
+.tooltip-content p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.tooltip-content h4:last-of-type {
+  margin-top: 16px;
+}
+
+.tooltip-content p:last-child {
+  margin-bottom: 0;
 }
