@@ -373,6 +373,7 @@ export default function App() {
   // Defines the component's UI structure
   // =========================================================================
   console.log("App.jsx: Rendering component - me:", me ? "logged in" : "not logged in", "loading:", loading, "error:", err);
+  console.log("App.jsx: Build timestamp:", new Date().toISOString());
   
   return (
     <div className="app-container">
