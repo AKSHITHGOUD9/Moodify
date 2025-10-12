@@ -6,38 +6,9 @@ import RecommendationGridV2 from "./components/RecommendationGridV2";
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
-// Cool rotating quotes
-const COOL_QUOTES = [
-  "🎵 Music is the universal language of the soul",
-  "🎧 Every mood has its perfect soundtrack",
-  "🎤 Let AI discover your next favorite song",
-  "🎹 From vibes to beats, we've got you covered",
-  "🎷 Your emotions, our algorithms, pure magic"
-];
+// Elegant single quote
+const ELEGANT_QUOTE = "Your emotions, our algorithms, pure magic";
 
-// Search suggestions
-const SEARCH_SUGGESTIONS = [
-  "nostalgic pop songs",
-  "energetic workout music",
-  "chill study playlist",
-  "old hindi bollywood hits",
-  "modern indie rock",
-  "classical music for relaxation",
-  "upbeat party songs",
-  "sad songs for rainy days",
-  "motivational pump-up music",
-  "romantic dinner music",
-  "road trip playlist",
-  "yoga and meditation music",
-  "country music classics",
-  "jazz and blues",
-  "electronic dance music",
-  "acoustic folk songs",
-  "rock anthems from the 80s",
-  "R&B and soul music",
-  "world music exploration",
-  "lullabies and sleep music"
-];
 
 // Main App Component
 export default function App() {
@@ -64,13 +35,10 @@ export default function App() {
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [playlists, setPlaylists] = useState(null);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
-  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
   const [useNewRecommendationSystem, setUseNewRecommendationSystem] = useState(true);
   const [recommendationData, setRecommendationData] = useState(null);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
   // =========================================================================
   // DATA FETCHING & LOGIC
@@ -167,6 +135,7 @@ export default function App() {
     }
   }, []);
 
+
   const toggleDashboard = useCallback(() => {
     if (!showDashboard && !analytics) {
       loadAnalytics();
@@ -190,7 +159,7 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
       
-      const res = await fetch(`${API}/recommend`, {
+      const res = await fetch(`${API}/recommend-v2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -279,12 +248,6 @@ export default function App() {
   };
 
   // Memoized filtered suggestions for better performance
-  const filteredSuggestions = useMemo(() => {
-    if (!mood.trim()) return SEARCH_SUGGESTIONS;
-    return SEARCH_SUGGESTIONS.filter(suggestion =>
-      suggestion.toLowerCase().includes(mood.toLowerCase())
-    );
-  }, [mood]);
 
   // Search suggestions handling
   const handleSearchInputChange = useCallback((e) => {
@@ -298,16 +261,12 @@ export default function App() {
     }
     
     if (value.trim().length > 0) {
-      setShowSuggestions(true);
-      setSelectedSuggestionIndex(-1);
-      
       // Set timeout to hide AI button after user stops typing
       const timeout = setTimeout(() => {
         setIsTyping(false);
       }, 1000);
       setTypingTimeout(timeout);
     } else {
-      setShowSuggestions(false);
       // Clear recommendations when search is cleared
       setRecs([]);
       setTrackIds([]);
@@ -315,48 +274,12 @@ export default function App() {
     }
   }, [typingTimeout]);
 
-  const handleSuggestionClick = useCallback((suggestion) => {
-    setMood(suggestion);
-    setIsTyping(true);
-    setShowSuggestions(false);
-    setSelectedSuggestionIndex(-1);
-  }, []);
 
   const handleKeyDown = useCallback((e) => {
-    if (!showSuggestions) {
-      if (e.key === 'Enter' && mood.trim() && !isGenerating) {
-        generateRecs();
-      }
-      return;
+    if (e.key === 'Enter' && mood.trim() && !isGenerating) {
+      generateRecs();
     }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
-          prev < filteredSuggestions.length - 1 ? prev + 1 : 0
-        );
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
-          prev > 0 ? prev - 1 : filteredSuggestions.length - 1
-        );
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedSuggestionIndex >= 0) {
-          handleSuggestionClick(filteredSuggestions[selectedSuggestionIndex]);
-        } else if (mood.trim() && !isGenerating) {
-          generateRecs();
-        }
-        break;
-      case 'Escape':
-        setShowSuggestions(false);
-        setSelectedSuggestionIndex(-1);
-        break;
-    }
-  }, [showSuggestions, filteredSuggestions, selectedSuggestionIndex, mood, isGenerating, generateRecs, handleSuggestionClick]);
+  }, [mood, isGenerating]);
 
 
   // =========================================================================
@@ -367,17 +290,6 @@ export default function App() {
     loadMe();
   }, []);
 
-  // Rotating quotes effect
-  // Memoized current quote for better performance
-  const currentQuote = useMemo(() => COOL_QUOTES[currentQuoteIndex], [currentQuoteIndex]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentQuoteIndex((prev) => (prev + 1) % COOL_QUOTES.length);
-    }, 3000); // Change quote every 3 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
 
   // =========================================================================
@@ -400,7 +312,7 @@ export default function App() {
           {me && (
             <div className="transparent-nav">
               <button className="ghost-btn" onClick={toggleDashboard}>
-                📊 Analytics
+                Your Dashboard
               </button>
               <div className="ghost-profile" onClick={() => setShowProfile(!showProfile)}>
                 <div className="ghost-avatar">
@@ -437,7 +349,7 @@ export default function App() {
                 <div className="center-content">
                   <h2 className="main-title">🎵 What's Your Vibe?</h2>
                   <div className="quote-container">
-                    <p className="floating-quote">{currentQuote}</p>
+                    <p className="floating-quote">{ELEGANT_QUOTE}</p>
                   </div>
                 </div>
 
@@ -449,45 +361,31 @@ export default function App() {
                       placeholder="Ask me anything..."
                       className="chatgpt-input"
                       onKeyDown={handleKeyDown}
-                      onFocus={() => setShowSuggestions(mood.trim().length > 0)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     />
                     <button
-                      className={`chatgpt-send-btn ${isGenerating ? 'loading' : isTyping ? 'ready' : 'idle'}`}
+                      className={`play-pause-btn ${isGenerating ? 'loading' : isTyping ? 'pause' : 'play'}`}
                       onClick={isGenerating ? () => setIsGenerating(false) : (mood.trim() ? generateRecs : null)}
-                      disabled={false}
-                      title={isGenerating ? "Stop generation" : isTyping ? "Send message" : "Enter a message"}
+                      disabled={!mood.trim() && !isGenerating}
+                      title={isGenerating ? "Stop generation" : isTyping ? "Pause typing" : "Start search"}
                     >
                       {isGenerating ? (
-                        <div className="loading-spinner">
-                          <div className="spinner-ring"></div>
+                        <div className="loading-animation">
+                          <div className="loading-dot"></div>
+                          <div className="loading-dot"></div>
+                          <div className="loading-dot"></div>
                         </div>
                       ) : isTyping ? (
-                        <svg className="pause-icon" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                        </svg>
+                        <div className="pause-animation">
+                          <div className="pause-bar"></div>
+                          <div className="pause-bar"></div>
+                        </div>
                       ) : (
-                        <svg className="play-icon" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
+                        <div className="play-animation">
+                          <div className="play-triangle"></div>
+                        </div>
                       )}
                     </button>
                     
-                    {/* Search Suggestions Dropdown */}
-                    {showSuggestions && filteredSuggestions.length > 0 && (
-                      <div className="suggestions-dropdown">
-                        {filteredSuggestions.slice(0, 8).map((suggestion, index) => (
-                          <div
-                            key={suggestion}
-                            className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
-                            onClick={() => handleSuggestionClick(suggestion)}
-                          >
-                            <span className="suggestion-icon">💡</span>
-                            <span className="suggestion-text">{suggestion}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   {/* Invisible Playlist Options - Hidden while typing */}
@@ -503,17 +401,21 @@ export default function App() {
                           <span className="ghost-slider"></span>
                           <span className="toggle-text">
                             Use AI + Spotify system
-                            <span className="info-icon" title="Click for more info">ℹ️</span>
+                            <span className="info-icon-wrapper">
+                              <img src="/tooltip.png" alt="Info" className="info-icon" />
+                              <div className="info-tooltip">
+                                <div className="tooltip-content">
+                                  <div className="tooltip-section">
+                                    <strong>AI + Spotify:</strong> Advanced AI analysis of your music history for personalized recommendations.
+                                  </div>
+                                  <div className="tooltip-section">
+                                    <strong>Regular Backend:</strong> Traditional algorithms based on audio features and genre matching.
+                                  </div>
+                                </div>
+                              </div>
+                            </span>
                           </span>
                         </label>
-                        <div className="info-tooltip">
-                          <div className="tooltip-content">
-                            <h4>AI + Spotify System</h4>
-                            <p>Uses advanced AI to analyze your music history and generate personalized recommendations based on your listening patterns, mood, and preferences.</p>
-                            <h4>Regular Backend</h4>
-                            <p>Uses traditional recommendation algorithms based on audio features and genre matching without AI analysis.</p>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -665,14 +567,22 @@ export default function App() {
             <div className="modern-dashboard-header">
               <div className="header-left">
                 <h1 className="dashboard-title">
-                  <span className="title-icon">📊</span>
+                  <span className="title-icon">
+                    <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                      <path d="M3 13h2v8H3v-8zm4-6h2v14H7V7zm4-4h2v18h-2V3zm4 8h2v10h-2V11zm4-6h2v16h-2V5z"/>
+                    </svg>
+                  </span>
                   Music Analytics
                 </h1>
                 <p className="dashboard-subtitle">Your personalized music insights</p>
               </div>
               <div className="header-actions">
                 <button className="modern-action-btn" onClick={loadPlaylists}>
-                  <span className="btn-icon">🎵</span>
+                  <span className="btn-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/>
+                    </svg>
+                  </span>
                   Playlists
                 </button>
                 <button className="modern-close-btn" onClick={() => setShowDashboard(false)}>
@@ -695,29 +605,45 @@ export default function App() {
               <div className="modern-analytics-layout">
                 {/* Stats Overview Cards */}
                 <div className="stats-overview">
-                  <div className="stat-card">
-                    <div className="stat-icon">🎵</div>
+                  <div 
+                    className={`stat-card ${analytics.top_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
+                    style={analytics.top_tracks?.[0]?.album_image ? { 
+                      backgroundImage: `url(${analytics.top_tracks[0].album_image})` 
+                    } : {}}
+                  >
                     <div className="stat-content">
                       <div className="stat-number">{analytics.total_tracks || 0}</div>
                       <div className="stat-label">Top Tracks</div>
                     </div>
                   </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">🎤</div>
+                  <div 
+                    className={`stat-card ${analytics.top_artists?.[0]?.image ? 'album-bg' : ''}`}
+                    style={analytics.top_artists?.[0]?.image ? { 
+                      backgroundImage: `url(${analytics.top_artists[0].image})` 
+                    } : {}}
+                  >
                     <div className="stat-content">
                       <div className="stat-number">{analytics.total_artists || 0}</div>
                       <div className="stat-label">Artists</div>
                     </div>
                   </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">⏰</div>
+                  <div 
+                    className={`stat-card ${analytics.recent_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
+                    style={analytics.recent_tracks?.[0]?.album_image ? { 
+                      backgroundImage: `url(${analytics.recent_tracks[0].album_image})` 
+                    } : {}}
+                  >
                     <div className="stat-content">
                       <div className="stat-number">{analytics.recent_tracks?.length || 0}</div>
                       <div className="stat-label">Recent Plays</div>
                     </div>
                   </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">🔥</div>
+                  <div 
+                    className={`stat-card ${playlists?.playlists?.[0]?.image ? 'album-bg' : ''}`}
+                    style={playlists?.playlists?.[0]?.image ? { 
+                      backgroundImage: `url(${playlists.playlists[0].image})` 
+                    } : {}}
+                  >
                     <div className="stat-content">
                       <div className="stat-number">{playlists?.total || 0}</div>
                       <div className="stat-label">Playlists</div>
@@ -730,12 +656,18 @@ export default function App() {
                   {/* Top Tracks Section */}
                   <div className="analytics-section top-tracks-section">
                     <div className="section-header">
-                      <h3>🔥 Your Top Tracks</h3>
+                      <h3>Your Top Tracks</h3>
                       <span className="section-badge">Most Played</span>
                     </div>
                     <div className="tracks-showcase">
                       {analytics.top_tracks?.slice(0, 5).map((track, index) => (
-                        <div key={track.id} className="track-showcase-item">
+                        <div 
+                          key={track.id} 
+                          className={`track-showcase-item ${track.album_image ? 'album-bg' : ''}`}
+                          style={track.album_image ? { 
+                            backgroundImage: `url(${track.album_image})` 
+                          } : {}}
+                        >
                           <div className="track-rank">#{index + 1}</div>
                           <div className="track-artwork">
                             <img src={track.album_image} alt={track.name} />
@@ -759,12 +691,18 @@ export default function App() {
                   {/* Top Artists Section */}
                   <div className="analytics-section artists-section">
                     <div className="section-header">
-                      <h3>🎤 Favorite Artists</h3>
+                      <h3>Favorite Artists</h3>
                       <span className="section-badge">Your Taste</span>
                     </div>
                     <div className="artists-showcase">
                       {analytics.top_artists?.slice(0, 6).map((artist, index) => (
-                        <div key={artist.id} className="artist-showcase-item">
+                        <div 
+                          key={artist.id} 
+                          className={`artist-showcase-item ${artist.image ? 'album-bg' : ''}`}
+                          style={artist.image ? { 
+                            backgroundImage: `url(${artist.image})` 
+                          } : {}}
+                        >
                           <div className="artist-image-container">
                             <img src={artist.image} alt={artist.name} className="artist-image" />
                             <div className="artist-rank">#{index + 1}</div>
@@ -785,7 +723,7 @@ export default function App() {
                   {/* Recent Activity */}
                   <div className="analytics-section recent-section">
                     <div className="section-header">
-                      <h3>⏰ Recent Activity</h3>
+                      <h3>Recent Activity</h3>
                       <span className="section-badge">Last 24h</span>
                     </div>
                     <div className="recent-activity-list">
@@ -811,7 +749,7 @@ export default function App() {
                   {playlists && !playlists.error && (
                     <div className="analytics-section playlists-section">
                       <div className="section-header">
-                        <h3>🎵 Your Playlists</h3>
+                        <h3>Your Playlists</h3>
                         <span className="section-badge">{playlists.total} Total</span>
                       </div>
                       <div className="playlists-showcase">

@@ -31,7 +31,6 @@ import re
 import logging
 from typing import Dict, List, Optional, Union
 from urllib.parse import urlencode
-from functools import lru_cache
 
 # Third-party imports
 import spotipy
@@ -43,6 +42,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 # =============================================================================
@@ -64,31 +64,33 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # =============================================================================
-# CACHING AND PERFORMANCE OPTIMIZATIONS
+# PERFORMANCE OPTIMIZATIONS (SELECTIVE CACHING)
 # =============================================================================
 
-@lru_cache(maxsize=128)
-def get_cached_genre_seeds() -> List[str]:
+# Cache for album covers with timestamp for freshness
+_album_covers_cache = {
+    "urls": [],
+    "timestamp": 0,
+    "ttl": 3600  # 1 hour cache
+}
+
+def is_cache_valid() -> bool:
+    """Check if album covers cache is still valid"""
+    return (time.time() - _album_covers_cache["timestamp"]) < _album_covers_cache["ttl"]
+
+def get_genre_seeds(sp) -> List[str]:
     """
-    Cache Spotify genre seeds to avoid repeated API calls.
-    
-    This function uses LRU caching to store genre seeds for 128 requests,
-    significantly reducing API calls and improving response times.
+    Get Spotify genre seeds without caching.
     
     Returns:
         List[str]: Available genre seeds from Spotify API
     """
     try:
-        oauth = get_spotify_oauth()
-        token = oauth.get_cached_token()
-        if token and not is_token_expired(token):
-            sp = spotipy.Spotify(auth=token["access_token"])
-            return sp.recommendation_genre_seeds()['genres']
+        return sp.recommendation_genre_seeds()['genres']
     except Exception as e:
-        logger.warning(f"Failed to cache genre seeds: {e}")
-    
-    # Fallback to common genres if API call fails
-    return ["pop", "rock", "electronic", "hip-hop", "jazz"]
+        logger.warning(f"Failed to get genre seeds: {e}")
+        # Fallback to common genres if API call fails
+        return ["pop", "rock", "electronic", "hip-hop", "jazz"]
 
 def is_token_expired(token_info: Optional[Dict]) -> bool:
     """
@@ -152,10 +154,14 @@ app.add_middleware(
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "your-secret-key"),
-    max_age=60 * 60 * 24 * 7,  # 7 days for development
+    max_age=60 * 60 * 2,  # 2 hours - shorter session for better security
     https_only=False,  # Set to True in production
     same_site="lax"  # Standard same-site policy
 )
+
+# =============================================================================
+# STATIC FILE SERVING (Production) - MOVED TO END OF FILE
+# =============================================================================
 
 # =============================================================================
 # MUSIC GENRE AND MOOD MAPPINGS
@@ -236,10 +242,9 @@ AUDIO_FEATURE_MAPPINGS = {
     "energetic": {"min_energy": 0.8, "max_energy": 1.0, "min_tempo": 130, "max_tempo": 180, "min_valence": 0.6, "max_valence": 0.9}
 }
 
-@lru_cache(maxsize=256)
 def enhanced_mood_analysis(query: str) -> Dict:
     """
-    Enhanced mood and genre analysis using natural language processing with caching
+    Enhanced mood and genre analysis using natural language processing (no caching)
     """
     query_lower = query.lower().strip()
     
@@ -412,9 +417,22 @@ async def get_user_music_history(sp) -> List[Dict]:
 
 async def query_llm_for_history_selection(query: str, music_history: List[Dict]) -> List[str]:
     """
-    Use Ollama LLM to select 10 songs from user's history that match the query
+    Use cloud LLM or fallback to select 10 songs from user's history that match the query
     """
     try:
+        # Try cloud LLM first
+        try:
+            from .llm_cloud import get_llm_client
+            llm_client = get_llm_client()
+            return await llm_client.select_tracks(query, music_history)
+        except Exception as e:
+            logger.warning(f"Cloud LLM not available: {e}, using fallback")
+            from .llm_fallback import select_tracks_fallback
+            return select_tracks_fallback(query, music_history)
+    except Exception as e:
+        logger.error(f"Error in LLM selection: {e}")
+        # Last resort: return first 10 tracks
+        return [track['id'] for track in music_history[:10] if track.get('id')]
         # Prepare a diverse music history for the LLM (mix of different time periods and sources)
         # Use intelligent selection based on query analysis
         diverse_history = []
@@ -738,7 +756,11 @@ async def get_spotify_recommendations(sp, seed_track_ids: List[str], query: str)
         return new_tracks
         
     except Exception as e:
-        logger.error(f"Error getting Spotify recommendations: {e}")
+        error_msg = str(e)
+        if "404" in error_msg:
+            logger.warning(f"Spotify recommendations API returned 404 - likely insufficient seed data. Seed tracks: {seed_track_ids}")
+        else:
+            logger.error(f"Error getting Spotify recommendations: {e}")
         # Fallback: return empty list instead of crashing
         return []
 
@@ -837,22 +859,9 @@ async def _ensure_token(request: Request):
         
         return spotipy.Spotify(auth=token_info["access_token"])
     
-    # If no session token, try to use cached token
-    print(f"DEBUG: No spotify_token_info in session, checking cached token")
-    try:
-        oauth = get_spotify_oauth()
-        cached_token = oauth.get_cached_token()
-        if cached_token and not is_token_expired(cached_token):
-            print(f"DEBUG: Using cached token")
-            # Store in session for future requests
-            session["spotify_token_info"] = cached_token
-            return spotipy.Spotify(auth=cached_token["access_token"])
-        else:
-            print(f"DEBUG: No valid cached token found")
-            return None
-    except Exception as e:
-        print(f"Error getting cached token: {e}")
-        return None
+    # No cached tokens - user needs to login fresh
+    print(f"DEBUG: No valid session token found - user needs to login")
+    return None
 
 @app.get("/")
 async def root():
@@ -881,7 +890,11 @@ async def login(request: Request):
     # Keep only last 5 states
     session["oauth_states"] = session["oauth_states"][-5:]
     
-    return RedirectResponse(auth_url)
+    # Force session cookie to be deleted and redirect
+    response = RedirectResponse(auth_url)
+    response.delete_cookie("session", path="/", domain=None, secure=False, httponly=True, samesite="lax")
+    
+    return response
 
 @app.get("/callback")
 async def callback(request: Request, code: str = None, state: str = None):
@@ -922,21 +935,44 @@ async def get_user_profile(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/logout")
+@app.get("/logout")
 async def logout(request: Request):
-    """Logout user and clear session"""
+    """Logout user and clear all cached data"""
+    logger.info(f"Logout endpoint called with method: {request.method}")
+    logger.info(f"Session keys before clear: {list(request.session.keys())}")
+    
     try:
-        # Clear the session
+        # Clear the session completely
         request.session.clear()
+        logger.info("Session cleared successfully")
         
-        # Clear the cached token file
+        # Force session to expire immediately by setting negative max_age
+        # This ensures the session cookie is deleted from the browser
+        response = JSONResponse({"message": "Logged out successfully - all caches cleared"})
+        response.delete_cookie("session", path="/", domain=None, secure=False, httponly=True, samesite="lax")
+        
+        # Clear all cached token files
         import os
-        cache_file = os.path.join(os.path.dirname(__file__), '.cache')
-        if os.path.exists(cache_file):
-            os.remove(cache_file)
-            logger.info("Cleared cached token file")
+        import glob
         
-        logger.info("User logged out successfully")
-        return {"message": "Logged out successfully"}
+        # Remove .cache files
+        cache_files = glob.glob(os.path.join(os.path.dirname(__file__), '.cache*'))
+        for cache_file in cache_files:
+            if os.path.exists(cache_file):
+                os.remove(cache_file)
+                logger.info(f"Cleared cached token file: {cache_file}")
+        
+        # Clear any other cache files
+        cache_patterns = ['.cache', '.spotify_cache', '.token_cache']
+        for pattern in cache_patterns:
+            cache_files = glob.glob(os.path.join(os.path.dirname(__file__), pattern))
+            for cache_file in cache_files:
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
+                    logger.info(f"Cleared cache file: {cache_file}")
+        
+        logger.info("User logged out successfully - all caches cleared")
+        return response
     except Exception as e:
         logger.error(f"Error during logout: {e}")
         raise HTTPException(status_code=500, detail="Failed to logout")
@@ -1055,22 +1091,57 @@ async def recommend_tracks_v2(request: Request, query: Dict):
         # Step 4: Use selected tracks as seeds for Spotify recommendations
         new_tracks = await get_spotify_recommendations(sp, selected_track_ids, user_query)
         
-        # If Spotify recommendations failed, use search as fallback
+        # If Spotify recommendations failed, use intelligent search fallback
         if not new_tracks:
-            logger.warning("Spotify recommendations failed, using search fallback")
+            logger.warning("Spotify recommendations failed, using intelligent search fallback")
             try:
-                # Try multiple search strategies
-                search_queries = [
-                    user_query,
-                    f"{user_query} music",
-                    f"{user_query} songs",
-                    "popular music"  # Fallback to popular music
-                ]
+                # Create intelligent search queries based on user input
+                search_queries = []
                 
+                # Analyze the query to create better search terms
+                query_lower = user_query.lower()
+                if any(word in query_lower for word in ['rock', 'pop', 'jazz', 'classical', 'country', 'hip hop', 'rap', 'electronic', 'indie']):
+                    # Genre-based search
+                    search_queries.extend([
+                        user_query,
+                        f"{user_query} songs",
+                        f"{user_query} music",
+                        f"{user_query} hits"
+                    ])
+                elif any(word in query_lower for word in ['happy', 'sad', 'energetic', 'calm', 'chill', 'upbeat', 'melancholy']):
+                    # Mood-based search
+                    search_queries.extend([
+                        f"{user_query} music",
+                        f"{user_query} songs",
+                        f"{user_query} playlist",
+                        user_query
+                    ])
+                elif any(word in query_lower for word in ['workout', 'gym', 'running', 'party', 'dance', 'study', 'focus']):
+                    # Activity-based search
+                    search_queries.extend([
+                        f"{user_query} music",
+                        f"{user_query} songs",
+                        f"{user_query} playlist",
+                        user_query
+                    ])
+                else:
+                    # General search with multiple strategies
+                    search_queries.extend([
+                        user_query,
+                        f"{user_query} music",
+                        f"{user_query} songs",
+                        f"{user_query} hits",
+                        f"{user_query} playlist"
+                    ])
+                
+                # Try each search query until we get results
                 for search_query in search_queries:
                     try:
-                        search_results = await asyncio.to_thread(sp.search, search_query, type='track', limit=20)
+                        logger.info(f"Trying search query: '{search_query}'")
+                        search_results = await asyncio.to_thread(sp.search, search_query, type='track', limit=20, market='US')
+                        logger.info(f"Search results for '{search_query}': {search_results}")
                         if search_results and 'tracks' in search_results and search_results['tracks']['items']:
+                            logger.info(f"Found {len(search_results['tracks']['items'])} tracks for query: '{search_query}'")
                             for track in search_results['tracks']['items']:
                                 if track and track.get('id') and len(new_tracks) < 20:
                                     track_data = {
@@ -1101,14 +1172,46 @@ async def recommend_tracks_v2(request: Request, query: Dict):
             except Exception as e:
                 logger.error(f"All search fallbacks failed: {e}")
         
+        # Final safety net - if we still have no tracks, get popular music
+        if not new_tracks:
+            logger.warning("All fallbacks failed, getting popular music as last resort")
+            try:
+                search_results = await asyncio.to_thread(sp.search, "popular music", type='track', limit=20, market='US')
+                if search_results and 'tracks' in search_results and search_results['tracks']['items']:
+                    for track in search_results['tracks']['items']:
+                        if track and track.get('id'):
+                            track_data = {
+                                'id': track['id'],
+                                'name': track['name'],
+                                'artists': [artist['name'] for artist in track.get('artists', [])],
+                                'album': track.get('album', {}).get('name', 'Unknown Album'),
+                                'album_image': None,
+                                'external_url': track.get('external_urls', {}).get('spotify'),
+                                'preview_url': track.get('preview_url'),
+                                'popularity': track.get('popularity', 0),
+                                'source': 'new'
+                            }
+                            
+                            album_images = track.get('album', {}).get('images', [])
+                            if album_images:
+                                track_data['album_image'] = album_images[0]['url']
+                            
+                            new_tracks.append(track_data)
+            except Exception as e:
+                logger.error(f"Even popular music fallback failed: {e}")
+        
         # Add source indicator to new tracks
         for track in new_tracks:
             track['source'] = 'new'
         
         logger.info(f"Generated {len(history_tracks)} history recommendations and {len(new_tracks)} new recommendations")
         
+        # Combine all tracks for the frontend
+        all_tracks = history_tracks + new_tracks
+        
         return JSONResponse({
             "query": user_query,
+            "tracks": all_tracks,  # Frontend expects 'tracks' property
             "user_history_recs": history_tracks,
             "new_recs": new_tracks,
             "total_history": len(history_tracks),
@@ -1140,7 +1243,7 @@ async def recommend_tracks(request: Request, query: Dict, background_tasks: Back
         if not user_query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-        # Enhanced mood analysis (cached)
+        # Enhanced mood analysis (no caching)
         analysis = enhanced_mood_analysis(user_query)
         
         # Get user's listening profile asynchronously
@@ -1166,8 +1269,8 @@ async def recommend_tracks(request: Request, query: Dict, background_tasks: Back
                     if f"max_{feature}" in audio_features:
                         audio_features[f"max_{feature}"] = min(1, blended_val + 0.1)
         
-        # Get available genre seeds (cached)
-        valid_genres = get_cached_genre_seeds()
+        # Get available genre seeds (no caching)
+        valid_genres = get_genre_seeds(sp)
         
         # Optimized genre selection
         seed_genres = []
@@ -1462,79 +1565,161 @@ async def get_user_playlists(request: Request):
 
 @app.get("/api/album-covers")
 async def get_album_covers(request: Request):
-    """Get album covers from user's listening history"""
+    """Get album covers from user's listening history with caching and parallel fetching"""
     sp = await _ensure_token(request)
     if not sp:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
+    # Check cache first for instant response
+    if is_cache_valid() and _album_covers_cache["urls"]:
+        logger.info(f"Returning {len(_album_covers_cache['urls'])} album covers from cache")
+        return JSONResponse({"urls": _album_covers_cache["urls"]})
+    
     try:
-        # Get user's top tracks from different time ranges
+        logger.info("Cache miss or expired, fetching fresh album covers...")
         album_covers = set()  # Use set to avoid duplicates
         
-        # Get top tracks from different time ranges with higher limits
-        time_ranges = ['short_term', 'medium_term', 'long_term']
-        
-        for time_range in time_ranges:
+        # Define async tasks for parallel execution
+        async def fetch_top_tracks_range(time_range: str):
             try:
                 top_tracks = await asyncio.to_thread(sp.current_user_top_tracks, time_range=time_range, limit=50)
+                urls = set()
                 for track in top_tracks['items']:
-                    if track['album']['images']:
-                        album_covers.add(track['album']['images'][0]['url'])
+                    if track.get('album', {}).get('images'):
+                        urls.add(track['album']['images'][0]['url'])
+                return urls
             except Exception as e:
                 logger.warning(f"Failed to fetch {time_range} tracks: {e}")
-                continue
+                return set()
         
-        # Get recent tracks with higher limit
-        try:
-            recent_tracks = await asyncio.to_thread(sp.current_user_recently_played, limit=50)
-            for track in recent_tracks['items']:
-                if track['track']['album']['images']:
-                    album_covers.add(track['track']['album']['images'][0]['url'])
-        except Exception as e:
-            logger.warning(f"Failed to fetch recent tracks: {e}")
+        async def fetch_recent_tracks():
+            try:
+                recent_tracks = await asyncio.to_thread(sp.current_user_recently_played, limit=50)
+                urls = set()
+                for item in recent_tracks['items']:
+                    if item.get('track', {}).get('album', {}).get('images'):
+                        urls.add(item['track']['album']['images'][0]['url'])
+                return urls
+            except Exception as e:
+                logger.warning(f"Failed to fetch recent tracks: {e}")
+                return set()
         
-        # Get user's saved albums
-        try:
-            saved_albums = await asyncio.to_thread(sp.current_user_saved_albums, limit=50)
-            for album in saved_albums['items']:
-                if album['album']['images']:
-                    album_covers.add(album['album']['images'][0]['url'])
-        except Exception as e:
-            logger.warning(f"Failed to fetch saved albums: {e}")
+        async def fetch_saved_albums():
+            try:
+                saved_albums = await asyncio.to_thread(sp.current_user_saved_albums, limit=50)
+                urls = set()
+                for item in saved_albums['items']:
+                    if item.get('album', {}).get('images'):
+                        urls.add(item['album']['images'][0]['url'])
+                return urls
+            except Exception as e:
+                logger.warning(f"Failed to fetch saved albums: {e}")
+                return set()
         
-        # Get user's playlists and their tracks
-        try:
-            playlists = await asyncio.to_thread(sp.current_user_playlists, limit=20)
-            for playlist in playlists['items']:
-                try:
-                    playlist_tracks = await asyncio.to_thread(sp.playlist_tracks, playlist['id'], limit=50)
-                    for track in playlist_tracks['items']:
-                        if track['track'] and track['track']['album']['images']:
-                            album_covers.add(track['track']['album']['images'][0]['url'])
-                except Exception as e:
-                    logger.warning(f"Failed to fetch tracks from playlist {playlist['name']}: {e}")
-                    continue
-        except Exception as e:
-            logger.warning(f"Failed to fetch playlists: {e}")
+        async def fetch_playlist_covers():
+            try:
+                playlists = await asyncio.to_thread(sp.current_user_playlists, limit=20)
+                urls = set()
+                
+                # Create tasks for fetching tracks from each playlist
+                async def fetch_playlist_tracks(playlist_id: str, playlist_name: str):
+                    try:
+                        playlist_tracks = await asyncio.to_thread(sp.playlist_tracks, playlist_id, limit=50)
+                        p_urls = set()
+                        for track_item in playlist_tracks['items']:
+                            track = track_item.get('track')
+                            if track and track.get('album', {}).get('images'):
+                                p_urls.add(track['album']['images'][0]['url'])
+                        return p_urls
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch tracks from playlist {playlist_name}: {e}")
+                        return set()
+                
+                # Fetch all playlists in parallel
+                playlist_tasks = [
+                    fetch_playlist_tracks(pl['id'], pl['name']) 
+                    for pl in playlists['items']
+                ]
+                playlist_results = await asyncio.gather(*playlist_tasks, return_exceptions=True)
+                
+                # Combine all URLs
+                for result in playlist_results:
+                    if isinstance(result, set):
+                        urls.update(result)
+                
+                return urls
+            except Exception as e:
+                logger.warning(f"Failed to fetch playlists: {e}")
+                return set()
         
-        # If still not enough, get new releases as fallback
-        if len(album_covers) < 200:
+        async def fetch_new_releases():
             try:
                 new_releases = await asyncio.to_thread(sp.new_releases, limit=50)
+                urls = set()
                 for album in new_releases['albums']['items']:
-                    if album['images']:
-                        album_covers.add(album['images'][0]['url'])
+                    if album.get('images'):
+                        urls.add(album['images'][0]['url'])
+                return urls
             except Exception as e:
                 logger.warning(f"Failed to fetch new releases: {e}")
+                return set()
         
-        # Convert set to list and shuffle
+        # Execute all API calls in parallel for maximum speed
+        start_time = time.time()
+        results = await asyncio.gather(
+            fetch_top_tracks_range('short_term'),
+            fetch_top_tracks_range('medium_term'),
+            fetch_top_tracks_range('long_term'),
+            fetch_recent_tracks(),
+            fetch_saved_albums(),
+            fetch_playlist_covers(),
+            fetch_new_releases(),
+            return_exceptions=True
+        )
+        
+        # Combine all results
+        for result in results:
+            if isinstance(result, set):
+                album_covers.update(result)
+        
+        # Convert to list
         album_covers_list = list(album_covers)
+        elapsed = time.time() - start_time
         
-        # Debug logging
-        logger.info(f"Returning {len(album_covers_list)} unique album cover URLs from user's history")
+        # Update cache
+        _album_covers_cache["urls"] = album_covers_list
+        _album_covers_cache["timestamp"] = time.time()
+        
+        logger.info(f"Fetched {len(album_covers_list)} unique album covers in {elapsed:.2f}s (cached for 1 hour)")
         
         return JSONResponse({"urls": album_covers_list})
         
     except Exception as e:
         logger.error(f"Error fetching album covers: {e}")
+        # Return cached data if available, even if expired
+        if _album_covers_cache["urls"]:
+            logger.info("Returning stale cache due to error")
+            return JSONResponse({"urls": _album_covers_cache["urls"]})
         return JSONResponse({"error": str(e)}, status_code=500)
+
+# =============================================================================
+# STATIC FILE SERVING (Production) - AT THE END
+# =============================================================================
+
+# Serve static files in production (frontend build)
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    
+    # Serve the frontend app for all non-API routes (MUST BE LAST)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve the React frontend for all non-API routes"""
+        # This route should only catch frontend routes, not API routes
+        # All API routes should be defined above this point
+        
+        # Serve index.html for all other routes (SPA routing)
+        if os.path.exists("static/index.html"):
+            from fastapi.responses import FileResponse
+            return FileResponse("static/index.html")
+        else:
+            raise HTTPException(status_code=404, detail="Frontend not built")
