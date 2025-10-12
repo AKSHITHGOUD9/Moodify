@@ -48,11 +48,15 @@ export default function App() {
   
   // Handle token from URL after Spotify authentication
   useEffect(() => {
+    console.log("App.jsx: Token handling useEffect running");
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const userId = urlParams.get('user_id');
     
+    console.log("App.jsx: URL params - token:", token ? "present" : "none", "userId:", userId ? "present" : "none");
+    
     if (token) {
+      console.log("App.jsx: Token found in URL, setting up token-based auth");
       setSpotifyToken(token);
       localStorage.setItem('spotify_token', token);
       if (userId) {
@@ -67,6 +71,7 @@ export default function App() {
     } else {
       // Try to get token from localStorage
       const storedToken = localStorage.getItem('spotify_token');
+      console.log("App.jsx: No token in URL, checking localStorage:", storedToken ? "token found" : "no token");
       if (storedToken) {
         setSpotifyToken(storedToken);
         // Fetch user data with stored token
@@ -367,6 +372,8 @@ export default function App() {
   // COMPONENT RENDERING
   // Defines the component's UI structure
   // =========================================================================
+  console.log("App.jsx: Rendering component - me:", me ? "logged in" : "not logged in", "loading:", loading, "error:", err);
+  
   return (
     <div className="app-container">
       {/* Advanced Fluid Cursor Animation */}
