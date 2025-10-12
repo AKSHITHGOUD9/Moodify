@@ -321,7 +321,11 @@ export default function App() {
         track_ids: tracksToUse,
       };
       
-      const res = await fetch(`${API}/create-playlist`, {
+      // Get token from localStorage
+      const token = localStorage.getItem('spotify_token');
+      const url = token ? `${API}/create-playlist?token=${token}` : `${API}/create-playlist`;
+      
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

@@ -852,7 +852,7 @@ async def filter_user_history_by_query(user_tracks: List[dict], query: str) -> L
                         except:
                             pass
                             
-            # Direct name/artist matching
+            # Direct name/artist matching (more lenient)
             query_words = query_lower.split()
             for word in query_words:
                 if len(word) > 2:  # Ignore short words like "the", "a", "is"
@@ -863,13 +863,23 @@ async def filter_user_history_by_query(user_tracks: List[dict], query: str) -> L
                     if word in track_album:
                         score += 4
                         
+            # If no specific matches found, be more lenient for regional queries
+            if score == 0 and any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']):
+                # Give some score to any tracks that might be regional
+                if any(lang in track_name.lower() for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']):
+                    score += 3
+                if any(lang in ' '.join(track_artists).lower() for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']):
+                    score += 4
+                        
             # Bonus for exact matches
             if query_lower in track_name:
                 score += 15
             if any(query_lower in artist for artist in track_artists):
                 score += 12
                 
-            if score > 0:
+            # Lower threshold to include more tracks, especially for regional queries
+            min_score = 1 if any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']) else 2
+            if score >= min_score:
                 relevant_tracks.append((track, score))
         
         # Sort by relevance score and return top 10
@@ -1069,38 +1079,38 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                 sp.search,
                 q=query,
                 type='track',
-                limit=20,
+            limit=20,
                 market=None  # Global market - works for all regions
-            )
-            
-            new_tracks = []
+        )
+        
+        new_tracks = []
             if isinstance(results, dict) and 'tracks' in results:
                 for track in results['tracks'].get('items', []):
-                    if track and track.get('id'):
-                        track_data = {
-                            'id': track['id'],
-                            'name': track['name'],
-                            'artists': [artist['name'] for artist in track.get('artists', [])],
-                            'album': track.get('album', {}).get('name', 'Unknown Album'),
-                            'album_image': None,
-                            'external_url': track.get('external_urls', {}).get('spotify'),
-                            'preview_url': track.get('preview_url'),
+                if track and track.get('id'):
+                    track_data = {
+                        'id': track['id'],
+                        'name': track['name'],
+                        'artists': [artist['name'] for artist in track.get('artists', [])],
+                        'album': track.get('album', {}).get('name', 'Unknown Album'),
+                        'album_image': None,
+                        'external_url': track.get('external_urls', {}).get('spotify'),
+                        'preview_url': track.get('preview_url'),
                             'popularity': track.get('popularity', 0),
                             'duration_ms': track.get('duration_ms', 0)
-                        }
-                        
-                        album_images = track.get('album', {}).get('images', [])
-                        if album_images:
-                            track_data['album_image'] = album_images[0]['url']
+                    }
+                    
+                    album_images = track.get('album', {}).get('images', [])
+                    if album_images:
+                        track_data['album_image'] = album_images[0]['url']
                         else:
                             track_data['album_image'] = 'https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+Cover'
-                        
-                        new_tracks.append(track_data)
-            
+                    
+                    new_tracks.append(track_data)
+        
             return new_tracks[:20]
         except Exception as fallback_error:
             logger.error(f"Fallback search also failed: {fallback_error}")
-            return []
+        return []
 
 async def get_generic_popular_tracks(sp) -> List[Dict]:
     """Get generic popular tracks as final fallback"""
@@ -1569,9 +1579,9 @@ async def get_top_tracks(request: Request, token: str = None):
         sp = spotipy.Spotify(auth=token)
     else:
         # Fallback to session-based authentication
-        sp = await _ensure_token(request)
-        if not sp:
-            return {"error": "Not authenticated"}
+    sp = await _ensure_token(request)
+    if not sp:
+        return {"error": "Not authenticated"}
     
     try:
         # Get user's top tracks (short term - last 4 weeks)
@@ -1654,9 +1664,9 @@ async def get_user_playlists(request: Request, token: str = None):
         sp = spotipy.Spotify(auth=token)
     else:
         # Fallback to session-based authentication
-        sp = await _ensure_token(request)
-        if not sp:
-            return {"error": "Not authenticated"}
+    sp = await _ensure_token(request)
+    if not sp:
+        return {"error": "Not authenticated"}
     
     try:
         # Get user's playlists
@@ -1690,9 +1700,9 @@ async def get_album_covers(request: Request, token: str = None):
         sp = spotipy.Spotify(auth=token)
     else:
         # Fallback to session-based authentication
-        sp = await _ensure_token(request)
-        if not sp:
-            return JSONResponse({"error": "Not authenticated"}, status_code=401)
+    sp = await _ensure_token(request)
+    if not sp:
+        return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
     try:
         # Get user's top tracks from different time ranges
@@ -1767,8 +1777,13 @@ async def get_album_covers(request: Request, token: str = None):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.post("/create-playlist")
-async def create_custom_playlist(request: Request, playlist_data: dict):
+async def create_custom_playlist(request: Request, playlist_data: dict, token: str = None):
     """Create a custom playlist and add it to user's library"""
+    # Try token-based authentication first
+    if token:
+        sp = spotipy.Spotify(auth=token)
+    else:
+        # Fallback to session-based authentication
     sp = await _ensure_token(request)
     if not sp:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1874,9 +1889,9 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             sp = spotipy.Spotify(auth=token)
         else:
             # Fallback to session-based authentication
-            sp = await _ensure_token(request)
-            if not sp:
-                raise HTTPException(status_code=401, detail="Not authenticated")
+        sp = await _ensure_token(request)
+        if not sp:
+            raise HTTPException(status_code=401, detail="Not authenticated")
         
         # Step 1: Get user's music history
         music_history = await get_user_music_history(sp)
@@ -1896,20 +1911,20 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
             
             # Step 3: Format the filtered history tracks for display
-            history_tracks = []
+                history_tracks = []
             for track in filtered_history:
-                track_data = {
-                    'id': track['id'],
-                    'name': track['name'],
-                    'artists': track['artists'],
-                    'album': track['album'],
+                        track_data = {
+                            'id': track['id'],
+                            'name': track['name'],
+                            'artists': track['artists'],
+                            'album': track['album'],
                     'album_image': track.get('album_image'),  # Use existing album_image
-                    'external_url': f"https://open.spotify.com/track/{track['id']}",
+                            'external_url': f"https://open.spotify.com/track/{track['id']}",
                     'preview_url': track.get('preview_url'),
                     'popularity': track.get('popularity', 0),
                     'duration_ms': track.get('duration_ms', 180000)  # Default 3 minutes if missing
-                }
-                history_tracks.append(track_data)
+                        }
+                        history_tracks.append(track_data)
         
         logger.info(f"Returning {len(history_tracks)} history tracks and {len(new_recommendations)} new recommendations")
         
