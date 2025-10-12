@@ -439,45 +439,53 @@ async def get_ai_curated_recommendations(sp, query: str, user_tracks: List[dict]
             decades = set()
             moods = set()
             
-            # Fetch audio features for better mood analysis
-            track_ids = [track['id'] for track in user_tracks[:20] if 'id' in track]
+            # Fetch audio features for better mood analysis (optional - may fail in dev mode)
+            track_ids = [track['id'] for track in user_tracks[:20] if isinstance(track, dict) and 'id' in track]
             audio_features = {}
             if track_ids:
                 try:
                     features_batch = await asyncio.to_thread(sp.audio_features, track_ids)
-                    audio_features = {f['id']: f for f in features_batch if f}
+                    if features_batch:
+                        audio_features = {f['id']: f for f in features_batch if f and isinstance(f, dict)}
                 except Exception as e:
-                    logger.warning(f"Could not fetch audio features: {e}")
+                    logger.warning(f"Audio features not available (dev mode limitation): {e}")
+                    # Continue without audio features - this is expected in development mode
             
             for track in user_tracks[:20]:
+                # Ensure track is a dictionary
+                if not isinstance(track, dict):
+                    continue
+                    
                 if 'genres' in track:
                     genres.update(track.get('genres', []))
-                if 'artists' in track:
+                if 'artists' in track and isinstance(track['artists'], list):
                     for artist in track['artists'][:2]:
-                        artists.add(artist.get('name', ''))
-                if 'album' in track and 'release_date' in track['album']:
+                        if isinstance(artist, dict):
+                            artists.add(artist.get('name', ''))
+                if 'album' in track and isinstance(track['album'], dict) and 'release_date' in track['album']:
                     try:
                         year = int(track['album']['release_date'][:4])
                         decade = (year // 10) * 10
                         decades.add(f"{decade}s")
                     except:
                         pass
-                # Extract mood from track features
+                # Extract mood from track features (only if available)
                 track_id = track.get('id')
                 if track_id and track_id in audio_features:
                     features = audio_features[track_id]
-                    if features.get('valence', 0) > 0.7:
-                        moods.add('happy')
-                    elif features.get('valence', 0) < 0.3:
-                        moods.add('sad')
-                    if features.get('energy', 0) > 0.7:
-                        moods.add('energetic')
-                    elif features.get('energy', 0) < 0.3:
-                        moods.add('chill')
-                    if features.get('danceability', 0) > 0.7:
-                        moods.add('danceable')
-                    if features.get('acousticness', 0) > 0.7:
-                        moods.add('acoustic')
+                    if isinstance(features, dict):
+                        if features.get('valence', 0) > 0.7:
+                            moods.add('happy')
+                        elif features.get('valence', 0) < 0.3:
+                            moods.add('sad')
+                        if features.get('energy', 0) > 0.7:
+                            moods.add('energetic')
+                        elif features.get('energy', 0) < 0.3:
+                            moods.add('chill')
+                        if features.get('danceability', 0) > 0.7:
+                            moods.add('danceable')
+                        if features.get('acousticness', 0) > 0.7:
+                            moods.add('acoustic')
             
             user_profile = f"""
 USER'S MUSIC DNA:
@@ -603,13 +611,18 @@ async def generate_enhanced_search_queries(user_query: str, user_tracks: List[di
             decades = set()
             
             for track in user_tracks[:15]:  # Analyze top 15 tracks
+                # Ensure track is a dictionary
+                if not isinstance(track, dict):
+                    continue
+                    
                 if 'genres' in track:
                     genres.update(track.get('genres', []))
-                if 'artists' in track:
+                if 'artists' in track and isinstance(track['artists'], list):
                     for artist in track['artists'][:2]:
-                        artists.add(artist.get('name', ''))
+                        if isinstance(artist, dict):
+                            artists.add(artist.get('name', ''))
                 # Extract decade from release date
-                if 'album' in track and 'release_date' in track['album']:
+                if 'album' in track and isinstance(track['album'], dict) and 'release_date' in track['album']:
                     try:
                         year = int(track['album']['release_date'][:4])
                         decade = (year // 10) * 10
@@ -725,6 +738,151 @@ async def search_spotify_tracks(sp, query: str) -> List[Dict]:
     except Exception as e:
         logger.error(f"Error searching for query '{query}': {e}")
         return []
+
+async def filter_user_history_by_query(user_tracks: List[dict], query: str) -> List[dict]:
+    """Intelligently filter user's music history to show only relevant tracks based on query"""
+    try:
+        if not user_tracks or len(user_tracks) == 0:
+            return []
+        
+        logger.info(f"Filtering {len(user_tracks)} user tracks for query: '{query}'")
+        
+        query_lower = query.lower().strip()
+        relevant_tracks = []
+        
+        # Define query categories and their matching criteria
+        rock_keywords = ['rock', 'metal', 'alternative', 'indie rock', 'hard rock', 'soft rock']
+        pop_keywords = ['pop', 'mainstream', 'chart', 'hit']
+        electronic_keywords = ['electronic', 'edm', 'techno', 'house', 'dance']
+        hiphop_keywords = ['hip hop', 'rap', 'hiphop', 'trap']
+        country_keywords = ['country', 'folk', 'bluegrass']
+        jazz_keywords = ['jazz', 'blues', 'soul']
+        classical_keywords = ['classical', 'orchestra', 'symphony']
+        regional_keywords = {
+            'tamil': ['tamil', 'tamil film', 'tamil songs'],
+            'telugu': ['telugu', 'telugu film', 'telugu songs'],
+            'hindi': ['hindi', 'bollywood', 'hindi film'],
+            'kannada': ['kannada', 'kannada film', 'kannada songs'],
+            'malayalam': ['malayalam', 'malayalam film', 'malayalam songs']
+        }
+        mood_keywords = {
+            'chill': ['chill', 'relaxing', 'calm', 'peaceful', 'ambient'],
+            'energetic': ['energetic', 'party', 'upbeat', 'dance', 'high energy'],
+            'sad': ['sad', 'melancholy', 'emotional', 'ballad'],
+            'happy': ['happy', 'cheerful', 'uplifting', 'positive']
+        }
+        era_keywords = {
+            'old': ['old', 'classic', 'vintage', 'retro', '90s', '80s', '70s'],
+            'new': ['new', 'latest', 'recent', '2024', '2023', 'fresh']
+        }
+        
+        for track in user_tracks:
+            if not isinstance(track, dict):
+                continue
+                
+            score = 0
+            track_name = track.get('name', '').lower()
+            track_artists = [artist.get('name', '').lower() for artist in track.get('artists', []) if isinstance(artist, dict)]
+            track_album = track.get('album', {}).get('name', '').lower() if isinstance(track.get('album'), dict) else ''
+            track_genres = [genre.lower() for genre in track.get('genres', [])]
+            
+            # Genre matching
+            if any(keyword in query_lower for keyword in rock_keywords):
+                if any(genre in ['rock', 'alternative', 'metal', 'indie'] for genre in track_genres):
+                    score += 10
+                if any('rock' in artist for artist in track_artists):
+                    score += 5
+                    
+            if any(keyword in query_lower for keyword in pop_keywords):
+                if any(genre in ['pop', 'mainstream'] for genre in track_genres):
+                    score += 10
+                    
+            if any(keyword in query_lower for keyword in electronic_keywords):
+                if any(genre in ['electronic', 'edm', 'dance'] for genre in track_genres):
+                    score += 10
+                    
+            if any(keyword in query_lower for keyword in hiphop_keywords):
+                if any(genre in ['hip hop', 'rap'] for genre in track_genres):
+                    score += 10
+                    
+            # Regional language matching
+            for language, keywords in regional_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    # Check if track/artist names suggest this language
+                    if any(keyword in track_name for keyword in keywords):
+                        score += 15
+                    if any(keyword in ' '.join(track_artists) for keyword in keywords):
+                        score += 12
+                    if any(keyword in track_album for keyword in keywords):
+                        score += 8
+                        
+            # Mood matching
+            for mood, keywords in mood_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    # This is a simplified mood detection - in production you'd use audio features
+                    if mood == 'chill' and any(word in track_name for word in ['chill', 'calm', 'soft', 'acoustic']):
+                        score += 8
+                    elif mood == 'energetic' and any(word in track_name for word in ['energy', 'party', 'dance', 'upbeat']):
+                        score += 8
+                        
+            # Era matching
+            for era, keywords in era_keywords.items():
+                if any(keyword in query_lower for keyword in keywords):
+                    if era == 'old':
+                        # Check release date for older tracks
+                        try:
+                            release_date = track.get('album', {}).get('release_date', '')
+                            if release_date and len(release_date) >= 4:
+                                year = int(release_date[:4])
+                                if year < 2010:
+                                    score += 10
+                                elif year < 2020:
+                                    score += 5
+                        except:
+                            pass
+                    elif era == 'new':
+                        try:
+                            release_date = track.get('album', {}).get('release_date', '')
+                            if release_date and len(release_date) >= 4:
+                                year = int(release_date[:4])
+                                if year >= 2023:
+                                    score += 10
+                                elif year >= 2020:
+                                    score += 5
+                        except:
+                            pass
+                            
+            # Direct name/artist matching
+            query_words = query_lower.split()
+            for word in query_words:
+                if len(word) > 2:  # Ignore short words like "the", "a", "is"
+                    if word in track_name:
+                        score += 6
+                    if any(word in artist for artist in track_artists):
+                        score += 8
+                    if word in track_album:
+                        score += 4
+                        
+            # Bonus for exact matches
+            if query_lower in track_name:
+                score += 15
+            if any(query_lower in artist for artist in track_artists):
+                score += 12
+                
+            if score > 0:
+                relevant_tracks.append((track, score))
+        
+        # Sort by relevance score and return top 10
+        relevant_tracks.sort(key=lambda x: x[1], reverse=True)
+        filtered_tracks = [track for track, score in relevant_tracks[:10]]
+        
+        logger.info(f"Filtered to {len(filtered_tracks)} relevant tracks from user history")
+        return filtered_tracks
+        
+    except Exception as e:
+        logger.error(f"Error filtering user history: {e}")
+        # Fallback: return first 10 tracks
+        return user_tracks[:10] if user_tracks else []
 
 async def get_search_based_recommendations(sp, query: str, user_tracks: List[dict] = None) -> List[Dict]:
     """Get enhanced recommendations using AI-generated search queries"""
@@ -1729,37 +1887,29 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
             history_tracks = []  # No history tracks for new users
         else:
-            # Step 2: Use OpenAI to select 10 songs from history
-            selected_track_ids = await query_openai_for_history_selection(user_query, music_history)
+            # Step 2: Use smart filtering to select relevant tracks from user's history
+            logger.info("Using smart history filtering instead of OpenAI selection")
+            filtered_history = await filter_user_history_by_query(music_history, user_query)
             
-            if not selected_track_ids:
-                logger.warning("OpenAI failed to select tracks, using fallback")
-                new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
-                history_tracks = []
-            else:
-                # Step 3: Get new recommendations using selected tracks as seeds
-                new_recommendations = await get_spotify_recommendations(sp, selected_track_ids, user_query)
-                
-                # Always use fallback since Spotify APIs are returning 403/404
-                logger.warning("Using fallback recommendations due to Spotify API issues")
-                new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
-                
-                # Step 4: Get the selected history tracks for display
-                history_tracks = []
-                for track in music_history:
-                    if track['id'] in selected_track_ids:
-                        track_data = {
-                            'id': track['id'],
-                            'name': track['name'],
-                            'artists': track['artists'],
-                            'album': track['album'],
-                            'album_image': track.get('album_image'),  # Use existing album_image
-                            'external_url': f"https://open.spotify.com/track/{track['id']}",
-                            'preview_url': track.get('preview_url'),
-                            'popularity': track.get('popularity', 0),
-                            'duration_ms': track.get('duration_ms', 180000)  # Default 3 minutes if missing
-                        }
-                        history_tracks.append(track_data)
+            # Always use fallback since Spotify APIs are returning 403/404
+            logger.warning("Using fallback recommendations due to Spotify API issues")
+            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
+            
+            # Step 3: Format the filtered history tracks for display
+            history_tracks = []
+            for track in filtered_history:
+                track_data = {
+                    'id': track['id'],
+                    'name': track['name'],
+                    'artists': track['artists'],
+                    'album': track['album'],
+                    'album_image': track.get('album_image'),  # Use existing album_image
+                    'external_url': f"https://open.spotify.com/track/{track['id']}",
+                    'preview_url': track.get('preview_url'),
+                    'popularity': track.get('popularity', 0),
+                    'duration_ms': track.get('duration_ms', 180000)  # Default 3 minutes if missing
+                }
+                history_tracks.append(track_data)
         
         logger.info(f"Returning {len(history_tracks)} history tracks and {len(new_recommendations)} new recommendations")
         
