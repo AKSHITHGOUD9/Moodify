@@ -1084,8 +1084,8 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
         )
         
         new_tracks = []
-        if isinstance(results, dict) and 'tracks' in results:
-            for track in results['tracks'].get('items', []):
+            if isinstance(results, dict) and 'tracks' in results:
+                for track in results['tracks'].get('items', []):
                 if track and track.get('id'):
                     track_data = {
                         'id': track['id'],
@@ -1095,15 +1095,15 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                         'album_image': None,
                         'external_url': track.get('external_urls', {}).get('spotify'),
                         'preview_url': track.get('preview_url'),
-                        'popularity': track.get('popularity', 0),
-                        'duration_ms': track.get('duration_ms', 0)
+                            'popularity': track.get('popularity', 0),
+                            'duration_ms': track.get('duration_ms', 0)
                     }
                     
                     album_images = track.get('album', {}).get('images', [])
                     if album_images:
                         track_data['album_image'] = album_images[0]['url']
-                    else:
-                        track_data['album_image'] = 'https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+Cover'
+                        else:
+                            track_data['album_image'] = 'https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+Cover'
                     
                     new_tracks.append(track_data)
         
