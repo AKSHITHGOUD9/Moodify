@@ -32,7 +32,11 @@ const AlbumCoverGrid = () => {
 
   const fetchAndShuffleCovers = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/album-covers`, { credentials: "include" });
+      // Get token from localStorage
+      const token = localStorage.getItem('spotify_token');
+      const url = token ? `${API}/api/album-covers?token=${token}` : `${API}/api/album-covers`;
+      
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch album covers");
       const data = await res.json();
       

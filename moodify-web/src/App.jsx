@@ -39,11 +39,66 @@ export default function App() {
   const [playlistName, setPlaylistName] = useState("");
   const [useNewRecommendationSystem, setUseNewRecommendationSystem] = useState(true);
   const [recommendationData, setRecommendationData] = useState(null);
+  const [spotifyToken, setSpotifyToken] = useState(null);
 
   // =========================================================================
   // DATA FETCHING & LOGIC
   // Handles all API calls and core application logic
   // =========================================================================
+  
+  // Handle token from URL after Spotify authentication
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const userId = urlParams.get('user_id');
+    
+    if (token) {
+      setSpotifyToken(token);
+      localStorage.setItem('spotify_token', token);
+      if (userId) {
+        localStorage.setItem('spotify_user_id', userId);
+      }
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Fetch user data with token
+      fetchUserDataWithToken(token);
+    } else {
+      // Try to get token from localStorage
+      const storedToken = localStorage.getItem('spotify_token');
+      if (storedToken) {
+        setSpotifyToken(storedToken);
+      }
+    }
+  }, []);
+
+  const fetchUserDataWithToken = async (token) => {
+    setLoading(true);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const res = await fetch(`${API}/me?token=${token}`, { 
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (res.ok) {
+        const data = await res.json();
+        setMe(data);
+        setErr("");
+      } else {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setErr(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
   const login = useCallback(() => {
     // Add timestamp to force fresh authentication
     const timestamp = Date.now();
@@ -56,7 +111,8 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
       
-      const res = await fetch(`${API}/me`, { 
+      const url = spotifyToken ? `${API}/me?token=${spotifyToken}` : `${API}/me`;
+      const res = await fetch(url, { 
         credentials: "include",
         signal: controller.signal
       });
@@ -96,6 +152,11 @@ export default function App() {
       setPlaylists(null);
       setRecommendationData(null);
       setErr("");
+      setSpotifyToken(null);
+      
+      // Clear localStorage
+      localStorage.removeItem('spotify_token');
+      localStorage.removeItem('spotify_user_id');
       
       // Show success message
       alert("Successfully logged out!");
