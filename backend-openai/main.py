@@ -1079,38 +1079,38 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                 sp.search,
                 q=query,
                 type='track',
-            limit=20,
+                limit=20,
                 market=None  # Global market - works for all regions
-        )
-        
-        new_tracks = []
+            )
+            
+            new_tracks = []
             if isinstance(results, dict) and 'tracks' in results:
                 for track in results['tracks'].get('items', []):
-                if track and track.get('id'):
-                    track_data = {
-                        'id': track['id'],
-                        'name': track['name'],
-                        'artists': [artist['name'] for artist in track.get('artists', [])],
-                        'album': track.get('album', {}).get('name', 'Unknown Album'),
-                        'album_image': None,
-                        'external_url': track.get('external_urls', {}).get('spotify'),
-                        'preview_url': track.get('preview_url'),
+                    if track and track.get('id'):
+                        track_data = {
+                            'id': track['id'],
+                            'name': track['name'],
+                            'artists': [artist['name'] for artist in track.get('artists', [])],
+                            'album': track.get('album', {}).get('name', 'Unknown Album'),
+                            'album_image': None,
+                            'external_url': track.get('external_urls', {}).get('spotify'),
+                            'preview_url': track.get('preview_url'),
                             'popularity': track.get('popularity', 0),
                             'duration_ms': track.get('duration_ms', 0)
-                    }
-                    
-                    album_images = track.get('album', {}).get('images', [])
-                    if album_images:
-                        track_data['album_image'] = album_images[0]['url']
+                        }
+                        
+                        album_images = track.get('album', {}).get('images', [])
+                        if album_images:
+                            track_data['album_image'] = album_images[0]['url']
                         else:
                             track_data['album_image'] = 'https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+Cover'
-                    
-                    new_tracks.append(track_data)
-        
+                        
+                        new_tracks.append(track_data)
+            
             return new_tracks[:20]
         except Exception as fallback_error:
             logger.error(f"Fallback search also failed: {fallback_error}")
-        return []
+            return []
 
 async def get_generic_popular_tracks(sp) -> List[Dict]:
     """Get generic popular tracks as final fallback"""
@@ -1579,7 +1579,7 @@ async def get_top_tracks(request: Request, token: str = None):
         sp = spotipy.Spotify(auth=token)
     else:
         # Fallback to session-based authentication
-    sp = await _ensure_token(request)
+        sp = await _ensure_token(request)
     if not sp:
         return {"error": "Not authenticated"}
     
@@ -1664,7 +1664,7 @@ async def get_user_playlists(request: Request, token: str = None):
         sp = spotipy.Spotify(auth=token)
     else:
         # Fallback to session-based authentication
-    sp = await _ensure_token(request)
+        sp = await _ensure_token(request)
     if not sp:
         return {"error": "Not authenticated"}
     
@@ -1700,7 +1700,7 @@ async def get_album_covers(request: Request, token: str = None):
         sp = spotipy.Spotify(auth=token)
     else:
         # Fallback to session-based authentication
-    sp = await _ensure_token(request)
+        sp = await _ensure_token(request)
     if not sp:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
@@ -1784,7 +1784,7 @@ async def create_custom_playlist(request: Request, playlist_data: dict, token: s
         sp = spotipy.Spotify(auth=token)
     else:
         # Fallback to session-based authentication
-    sp = await _ensure_token(request)
+        sp = await _ensure_token(request)
     if not sp:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -1889,7 +1889,7 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             sp = spotipy.Spotify(auth=token)
         else:
             # Fallback to session-based authentication
-        sp = await _ensure_token(request)
+            sp = await _ensure_token(request)
         if not sp:
             raise HTTPException(status_code=401, detail="Not authenticated")
         
@@ -1911,7 +1911,7 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
             
             # Step 3: Format the filtered history tracks for display
-                history_tracks = []
+            history_tracks = []
             for track in filtered_history:
                         track_data = {
                             'id': track['id'],
