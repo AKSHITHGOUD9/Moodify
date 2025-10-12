@@ -186,7 +186,8 @@ export default function App() {
   const loadAnalytics = useCallback(async () => {
     setLoadingAnalytics(true);
     try {
-      const res = await fetch(`${API}/api/top-tracks`, { credentials: "include" });
+      const url = spotifyToken ? `${API}/api/top-tracks?token=${spotifyToken}` : `${API}/api/top-tracks`;
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setAnalytics(data);
@@ -196,12 +197,13 @@ export default function App() {
     } finally {
       setLoadingAnalytics(false);
     }
-  }, []);
+  }, [spotifyToken]);
 
   const loadPlaylists = useCallback(async () => {
     setLoadingPlaylists(true);
     try {
-      const res = await fetch(`${API}/api/my-playlists`, { credentials: "include" });
+      const url = spotifyToken ? `${API}/api/my-playlists?token=${spotifyToken}` : `${API}/api/my-playlists`;
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setPlaylists(data);
@@ -211,7 +213,7 @@ export default function App() {
     } finally {
       setLoadingPlaylists(false);
     }
-  }, []);
+  }, [spotifyToken]);
 
 
   const toggleDashboard = useCallback(() => {

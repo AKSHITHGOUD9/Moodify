@@ -1226,11 +1226,16 @@ async def get_spotify_token(request: Request):
         raise HTTPException(status_code=500, detail="Failed to get token")
 
 @app.get("/api/top-tracks")
-async def get_top_tracks(request: Request):
+async def get_top_tracks(request: Request, token: str = None):
     """Get user's top tracks for analytics"""
-    sp = await _ensure_token(request)
-    if not sp:
-        return {"error": "Not authenticated"}
+    # Try token-based authentication first
+    if token:
+        sp = spotipy.Spotify(auth=token)
+    else:
+        # Fallback to session-based authentication
+        sp = await _ensure_token(request)
+        if not sp:
+            return {"error": "Not authenticated"}
     
     try:
         # Get user's top tracks (short term - last 4 weeks)
@@ -1306,11 +1311,16 @@ async def get_user_profile_analysis(request: Request):
         return {"error": str(e)}
 
 @app.get("/api/my-playlists")
-async def get_user_playlists(request: Request):
+async def get_user_playlists(request: Request, token: str = None):
     """Get user's playlists"""
-    sp = await _ensure_token(request)
-    if not sp:
-        return {"error": "Not authenticated"}
+    # Try token-based authentication first
+    if token:
+        sp = spotipy.Spotify(auth=token)
+    else:
+        # Fallback to session-based authentication
+        sp = await _ensure_token(request)
+        if not sp:
+            return {"error": "Not authenticated"}
     
     try:
         # Get user's playlists
