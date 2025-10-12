@@ -422,14 +422,159 @@ async def get_spotify_recommendations(sp, seed_track_ids: List[str], query: str)
         logger.error(f"Failed track IDs: {seed_track_ids}")
         return []
 
-async def get_fallback_recommendations(sp, query: str) -> List[Dict]:
-    """Get recommendations for new users with no music history using search-based approach"""
+async def get_ai_curated_recommendations(sp, query: str, user_tracks: List[dict] = None) -> List[Dict]:
+    """Advanced AI-powered recommendation system that analyzes user taste and query intent"""
+    try:
+        if not openai_client:
+            logger.warning("OpenAI not available, falling back to search-based recommendations")
+            return await get_search_based_recommendations(sp, query, user_tracks or [])
+        
+        logger.info(f"Getting AI-curated recommendations for: {query}")
+        
+        # Analyze user's music taste
+        user_profile = ""
+        if user_tracks:
+            genres = set()
+            artists = set()
+            decades = set()
+            moods = set()
+            
+            # Fetch audio features for better mood analysis
+            track_ids = [track['id'] for track in user_tracks[:20] if 'id' in track]
+            audio_features = {}
+            if track_ids:
+                try:
+                    features_batch = await asyncio.to_thread(sp.audio_features, track_ids)
+                    audio_features = {f['id']: f for f in features_batch if f}
+                except Exception as e:
+                    logger.warning(f"Could not fetch audio features: {e}")
+            
+            for track in user_tracks[:20]:
+                if 'genres' in track:
+                    genres.update(track.get('genres', []))
+                if 'artists' in track:
+                    for artist in track['artists'][:2]:
+                        artists.add(artist.get('name', ''))
+                if 'album' in track and 'release_date' in track['album']:
+                    try:
+                        year = int(track['album']['release_date'][:4])
+                        decade = (year // 10) * 10
+                        decades.add(f"{decade}s")
+                    except:
+                        pass
+                # Extract mood from track features
+                track_id = track.get('id')
+                if track_id and track_id in audio_features:
+                    features = audio_features[track_id]
+                    if features.get('valence', 0) > 0.7:
+                        moods.add('happy')
+                    elif features.get('valence', 0) < 0.3:
+                        moods.add('sad')
+                    if features.get('energy', 0) > 0.7:
+                        moods.add('energetic')
+                    elif features.get('energy', 0) < 0.3:
+                        moods.add('chill')
+                    if features.get('danceability', 0) > 0.7:
+                        moods.add('danceable')
+                    if features.get('acousticness', 0) > 0.7:
+                        moods.add('acoustic')
+            
+            user_profile = f"""
+USER'S MUSIC DNA:
+- Favorite Genres: {', '.join(list(genres)[:6])}
+- Favorite Artists: {', '.join(list(artists)[:10])}
+- Preferred Decades: {', '.join(list(decades)[:4])}
+- Music Moods: {', '.join(list(moods)[:4])}
+"""
+        
+        # Create sophisticated prompt for AI curation
+        prompt = f"""
+You are a world-class music curator with access to Spotify's entire catalog. {user_profile}
+
+User Request: "{query}"
+
+Your task: Generate 8-10 SPECIFIC search queries that will find the most relevant, high-quality, and fresh music for this user.
+
+CURATION STRATEGY:
+1. PERSONALIZATION: Use the user's music DNA to find similar artists, genres, and styles
+2. FRESHNESS: Prioritize recent releases (2023-2024) when appropriate
+3. QUALITY: Focus on well-known artists, popular songs, and critically acclaimed music
+4. DIVERSITY: Include different subgenres and styles within the request
+5. CULTURAL ACCURACY: For regional music, be linguistically and culturally precise
+6. TRENDING: Include viral hits and trending artists when relevant
+
+SEARCH QUERY GUIDELINES:
+- Use exact artist names, album titles, and song titles
+- Include year ranges for temporal requests (e.g., "2024 hits", "90s classics")
+- Combine multiple criteria (e.g., "chill indie rock 2024", "viral Telugu songs")
+- Use Spotify-friendly search terms
+- Avoid overly generic terms
+
+Generate 8-10 specific search queries:
+"""
+        
+        response = await asyncio.to_thread(
+            openai_client.chat.completions.create,
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400,
+            temperature=0.7
+        )
+        
+        queries_text = response.choices[0].message.content.strip()
+        
+        # Parse the response to extract individual queries
+        queries = []
+        lines = queries_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line and (line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.', '10.')) or 
+                       line.startswith('"') or line.startswith("'")):
+                query = re.sub(r'^[\d\.\-\s]+', '', line)  # Remove numbering
+                query = query.strip('"\'')  # Remove quotes
+                if query and len(query) > 3:
+                    queries.append(query)
+        
+        if not queries:
+            queries = [query]
+        
+        logger.info(f"AI generated {len(queries)} curated search queries: {queries}")
+        
+        # Execute searches with these curated queries
+        all_tracks = []
+        for search_query in queries[:8]:  # Limit to 8 queries for performance
+            tracks = await search_spotify_tracks(sp, search_query)
+            all_tracks.extend(tracks)
+        
+        # Remove duplicates and apply intelligent filtering
+        unique_tracks = {}
+        for track in all_tracks:
+            if track['id'] not in unique_tracks:
+                unique_tracks[track['id']] = track
+        
+        final_tracks = list(unique_tracks.values())
+        
+        # Sort by popularity and relevance
+        final_tracks.sort(key=lambda x: x.get('popularity', 0), reverse=True)
+        
+        # Return top 20 results
+        result = final_tracks[:20]
+        logger.info(f"AI curation returned {len(result)} high-quality recommendations")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in AI curation: {e}")
+        # Fallback to search-based recommendations
+        return await get_search_based_recommendations(sp, query, user_tracks or [])
+
+async def get_fallback_recommendations(sp, query: str, user_tracks: List[dict] = None) -> List[Dict]:
+    """Get recommendations using search-based approach with user context"""
     try:
         logger.info(f"Getting fallback recommendations for query: {query}")
         
-        # Use search-based recommendations instead of Spotify's recommendation API
-        logger.info("Using search-based fallback recommendations")
-        new_tracks = await get_search_based_recommendations(sp, query)
+        # Use advanced AI curation instead of basic search
+        logger.info("Using AI-curated recommendations")
+        new_tracks = await get_ai_curated_recommendations(sp, query, user_tracks or [])
         
         if new_tracks:
             logger.info(f"Generated {len(new_tracks)} search-based recommendations")
@@ -443,14 +588,45 @@ async def get_fallback_recommendations(sp, query: str) -> List[Dict]:
         logger.error(f"Error getting fallback recommendations: {e}")
         return []
 
-async def generate_enhanced_search_queries(user_query: str) -> List[str]:
-    """Use OpenAI to generate better search queries for Spotify"""
+async def generate_enhanced_search_queries(user_query: str, user_tracks: List[dict] = None) -> List[str]:
+    """Use OpenAI to generate better search queries for Spotify with user context"""
     try:
         if not openai_client:
             logger.warning("OpenAI client not available, using original query")
             return [user_query]
         
+        # Analyze user's music taste for personalized queries
+        user_context = ""
+        if user_tracks:
+            genres = set()
+            artists = set()
+            decades = set()
+            
+            for track in user_tracks[:15]:  # Analyze top 15 tracks
+                if 'genres' in track:
+                    genres.update(track.get('genres', []))
+                if 'artists' in track:
+                    for artist in track['artists'][:2]:
+                        artists.add(artist.get('name', ''))
+                # Extract decade from release date
+                if 'album' in track and 'release_date' in track['album']:
+                    try:
+                        year = int(track['album']['release_date'][:4])
+                        decade = (year // 10) * 10
+                        decades.add(f"{decade}s")
+                    except:
+                        pass
+            
+            user_context = f"""
+USER'S MUSIC PROFILE:
+- Favorite Genres: {', '.join(list(genres)[:5])}
+- Favorite Artists: {', '.join(list(artists)[:8])}
+- Preferred Decades: {', '.join(list(decades)[:3])}
+"""
+        
         prompt = f"""
+You are a music expert curating personalized recommendations. {user_context}
+
 User wants music recommendations for: "{user_query}"
 
 Generate 4-5 HIGHLY SPECIFIC search queries for Spotify that will find ONLY songs within the exact context of the user's request.
@@ -461,9 +637,11 @@ CRITICAL RULES FOR ALL CASES:
 3. ERA/DECADE: If user asks for "old", "vintage", "80s", "90s", focus on that specific time period
 4. MOOD/ACTIVITY: If user asks for "chill", "party", "workout", focus on that specific mood/activity
 5. ARTIST: If user asks for specific artists, focus on their work and similar artists
-6. NEVER generate generic terms that could return popular global hits unrelated to the context
-7. Be culturally, temporally, and stylistically specific
-8. Use actual artist names, album names, film names, and specific terms
+6. PERSONALIZATION: Use user's music profile to find similar artists and genres
+7. FRESH CONTENT: Prioritize recent releases and trending artists when relevant
+8. NEVER generate generic terms that could return popular global hits unrelated to the context
+9. Be culturally, temporally, and stylistically specific
+10. Use actual artist names, album names, film names, and specific terms
 
 Examples:
 - "old Telugu" → ["telugu film songs 1990s", "ilayaraja telugu", "spb telugu classics", "telugu golden era", "telugu vintage hits"]
@@ -548,13 +726,13 @@ async def search_spotify_tracks(sp, query: str) -> List[Dict]:
         logger.error(f"Error searching for query '{query}': {e}")
         return []
 
-async def get_search_based_recommendations(sp, query: str) -> List[Dict]:
+async def get_search_based_recommendations(sp, query: str, user_tracks: List[dict] = None) -> List[Dict]:
     """Get enhanced recommendations using AI-generated search queries"""
     try:
         logger.info(f"Getting enhanced search-based recommendations for: {query}")
         
-        # Generate enhanced search queries using OpenAI
-        search_queries = await generate_enhanced_search_queries(query)
+        # Generate enhanced search queries using OpenAI with user context
+        search_queries = await generate_enhanced_search_queries(query, user_tracks)
         
         # Search Spotify with each query
         all_tracks = []
@@ -1506,7 +1684,7 @@ async def recommend_tracks(request: Request, query: dict):
         # Handle new users with no music history
         if not music_history or len(music_history) == 0:
             logger.info("No music history found, using fallback recommendations")
-            new_recommendations = await get_fallback_recommendations(sp, user_query)
+            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
         else:
             logger.info(f"Using music history with {len(music_history)} tracks")
             selected_track_ids = await query_openai_for_history_selection(user_query, music_history)
@@ -1548,7 +1726,7 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
         # Handle new users with no music history
         if not music_history:
             logger.info("No music history found, using fallback recommendations")
-            new_recommendations = await get_fallback_recommendations(sp, user_query)
+            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
             history_tracks = []  # No history tracks for new users
         else:
             # Step 2: Use OpenAI to select 10 songs from history
@@ -1556,7 +1734,7 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             
             if not selected_track_ids:
                 logger.warning("OpenAI failed to select tracks, using fallback")
-                new_recommendations = await get_fallback_recommendations(sp, user_query)
+                new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
                 history_tracks = []
             else:
                 # Step 3: Get new recommendations using selected tracks as seeds
@@ -1564,7 +1742,7 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
                 
                 # Always use fallback since Spotify APIs are returning 403/404
                 logger.warning("Using fallback recommendations due to Spotify API issues")
-                new_recommendations = await get_fallback_recommendations(sp, user_query)
+                new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
                 
                 # Step 4: Get the selected history tracks for display
                 history_tracks = []
