@@ -69,11 +69,14 @@ export default function App() {
       const storedToken = localStorage.getItem('spotify_token');
       if (storedToken) {
         setSpotifyToken(storedToken);
+        // Fetch user data with stored token
+        fetchUserDataWithToken(storedToken);
       }
     }
   }, []);
 
   const fetchUserDataWithToken = async (token) => {
+    console.log("Fetching user data with token:", token ? "Token present" : "No token");
     setLoading(true);
     try {
       const controller = new AbortController();
@@ -106,13 +109,17 @@ export default function App() {
   }, []);
 
   const loadMe = useCallback(async () => {
+    // If we have a token, use the token-based function instead
+    if (spotifyToken) {
+      return fetchUserDataWithToken(spotifyToken);
+    }
+    
     setLoading(true);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
       
-      const url = spotifyToken ? `${API}/me?token=${spotifyToken}` : `${API}/me`;
-      const res = await fetch(url, { 
+      const res = await fetch(`${API}/me`, { 
         credentials: "include",
         signal: controller.signal
       });
@@ -348,8 +355,11 @@ export default function App() {
   // Handles non-rendering side effects like API calls on component mount
   // =========================================================================
   useEffect(() => {
-    loadMe();
-  }, []);
+    // Only call loadMe if we don't have a token (token-based loading is handled separately)
+    if (!spotifyToken) {
+      loadMe();
+    }
+  }, [spotifyToken]);
 
 
 
