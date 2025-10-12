@@ -101,11 +101,15 @@ const AlbumCoverGrid = () => {
 
   // Initialize album covers and set up mouse tracking
   useEffect(() => {
-    fetchAndShuffleCovers();
+    // Wait a bit for the token to be stored, then fetch album covers
+    const timer = setTimeout(() => {
+      fetchAndShuffleCovers();
+    }, 1000); // Wait 1 second for token to be available
 
     window.addEventListener('mousemove', handleMouseMove);
     
     return () => {
+      clearTimeout(timer);
       if (fadeTimeout.current) {
         clearTimeout(fadeTimeout.current);
       }
