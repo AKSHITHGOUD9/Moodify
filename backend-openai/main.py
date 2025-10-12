@@ -109,8 +109,8 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET,
     max_age=60 * 60 * 2,  # 2 hours - shorter session for better security
-    https_only=True,
-    same_site="none"
+    https_only=False,
+    same_site="lax"
 )
 
 # =============================================================================
@@ -129,6 +129,9 @@ def get_spotify_oauth():
 async def _ensure_token(request: Request):
     """Ensure we have a valid Spotify token"""
     session = request.session
+    
+    logger.info(f"Session keys in _ensure_token: {list(session.keys())}")
+    logger.info(f"Session ID: {session.session_id if hasattr(session, 'session_id') else 'No session ID'}")
     
     if "spotify_token_info" in session:
         token_info = session["spotify_token_info"]
@@ -1104,11 +1107,22 @@ async def callback(request: Request, code: str = None, error: str = None):
             logger.error("Failed to get access token")
             return RedirectResponse(url=f"{POST_LOGIN_REDIRECT}?error=token_failed")
         
-        # Store token in session
+        # Store token in session (for backward compatibility)
         request.session["spotify_token_info"] = token_info
         
         logger.info("User successfully authenticated")
-        return RedirectResponse(url=POST_LOGIN_REDIRECT)
+        logger.info(f"Session keys after storing token: {list(request.session.keys())}")
+        
+        # Get user info to pass to frontend
+        sp = spotipy.Spotify(auth=token_info["access_token"])
+        user = sp.current_user()
+        
+        # Add token and user info to URL for frontend to store
+        token = token_info.get("access_token", "")
+        user_id = user.get("id", "")
+        redirect_url = f"{POST_LOGIN_REDIRECT}?token={token}&user_id={user_id}"
+        
+        return RedirectResponse(url=redirect_url)
         
     except Exception as e:
         logger.error(f"Error in callback: {e}")
@@ -1158,9 +1172,23 @@ async def logout(request: Request):
         raise HTTPException(status_code=500, detail="Failed to logout")
 
 @app.get("/me")
-async def get_user(request: Request):
+async def get_user(request: Request, token: str = None):
     """Get current user information"""
     try:
+        # Try token-based authentication first
+        if token:
+            sp = spotipy.Spotify(auth=token)
+            user = await asyncio.to_thread(sp.current_user)
+            return {
+                "id": user["id"],
+                "display_name": user["display_name"],
+                "email": user.get("email"),
+                "country": user.get("country"),
+                "followers": user.get("followers", {}).get("total", 0),
+                "images": user.get("images", [])
+            }
+        
+        # Fallback to session-based authentication
         sp = await _ensure_token(request)
         if not sp:
             raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1309,11 +1337,16 @@ async def get_user_playlists(request: Request):
         return {"error": str(e)}
 
 @app.get("/api/album-covers")
-async def get_album_covers(request: Request):
+async def get_album_covers(request: Request, token: str = None):
     """Get album covers from user's listening history"""
-    sp = await _ensure_token(request)
-    if not sp:
-        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+    # Try token-based authentication first
+    if token:
+        sp = spotipy.Spotify(auth=token)
+    else:
+        # Fallback to session-based authentication
+        sp = await _ensure_token(request)
+        if not sp:
+            return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
     try:
         # Get user's top tracks from different time ranges
