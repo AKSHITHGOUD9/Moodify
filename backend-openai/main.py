@@ -73,7 +73,7 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 SESSION_SECRET = os.getenv("SESSION_SECRET", secrets.token_urlsafe(32))
 
 # CORS configuration
-FRONTEND_URLS = os.getenv("FRONTEND_URLS", "http://127.0.0.1:5173").split(",")
+FRONTEND_URLS = os.getenv("FRONTEND_URLS", "http://127.0.0.1:5173,https://moodify-ai-powered.vercel.app").split(",")
 POST_LOGIN_REDIRECT = os.getenv("POST_LOGIN_REDIRECT", "http://127.0.0.1:5173/")
 
 # Initialize OpenAI client
@@ -1620,4 +1620,6 @@ if os.path.exists("static"):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
