@@ -1,0 +1,12 @@
+backend/
+backend-openai/
+backend-ollama/
+scripts/
+DEPLOYMENT_GUIDE.md
+PRODUCTION_DEPLOYMENT_GUIDE.md
+PUBLIC_LAUNCH_GUIDE.md
+Run Commands
+*.log
+.env
+.env.local
+.env.production

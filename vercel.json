@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd moodify-web && npm run build",
+  "outputDirectory": "moodify-web/dist",
+  "installCommand": "cd moodify-web && npm install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
