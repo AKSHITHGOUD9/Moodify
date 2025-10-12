@@ -233,6 +233,9 @@ export default function App() {
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
       
       const url = spotifyToken ? `${API}/recommend-v2?token=${spotifyToken}` : `${API}/recommend-v2`;
+      console.log("Making recommendation request to:", url);
+      console.log("Spotify token present:", !!spotifyToken);
+      
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -244,6 +247,8 @@ export default function App() {
         }),
       });
       
+      console.log("Recommendation response status:", res.status, res.statusText);
+      
       clearTimeout(timeoutId);
       
       if (!res.ok) {
@@ -252,12 +257,16 @@ export default function App() {
       }
       
       const data = await res.json();
+      console.log("Recommendation response data:", data);
       setRecs(data);
       
       // Store the track IDs for later playlist creation
       if (data.tracks?.length > 0) {
         const ids = data.tracks.map(track => track.id);
+        console.log("Setting track IDs:", ids);
         setTrackIds(ids);
+      } else {
+        console.log("No tracks found in response:", data);
       }
       
     } catch (e) {
