@@ -232,7 +232,8 @@ export default function App() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
       
-      const res = await fetch(`${API}/recommend-v2`, {
+      const url = spotifyToken ? `${API}/recommend-v2?token=${spotifyToken}` : `${API}/recommend-v2`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

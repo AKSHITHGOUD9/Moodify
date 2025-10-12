@@ -1516,16 +1516,21 @@ async def recommend_tracks(request: Request, query: dict):
         raise HTTPException(status_code=500, detail="Failed to get recommendations")
 
 @app.post("/recommend-v2")
-async def get_recommendations_v2(request: Request, data: dict):
+async def get_recommendations_v2(request: Request, data: dict, token: str = None):
     """Get AI-powered music recommendations using OpenAI GPT"""
     try:
         user_query = data.get("query", "").strip()
         if not user_query:
             raise HTTPException(status_code=400, detail="Query is required")
         
-        sp = await _ensure_token(request)
-        if not sp:
-            raise HTTPException(status_code=401, detail="Not authenticated")
+        # Try token-based authentication first
+        if token:
+            sp = spotipy.Spotify(auth=token)
+        else:
+            # Fallback to session-based authentication
+            sp = await _ensure_token(request)
+            if not sp:
+                raise HTTPException(status_code=401, detail="Not authenticated")
         
         # Step 1: Get user's music history
         music_history = await get_user_music_history(sp)
