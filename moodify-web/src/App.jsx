@@ -226,11 +226,14 @@ export default function App() {
    * Note: This function no longer auto-creates a playlist. It only fetches track data.
    */
   const generateRecs = useCallback(async () => {
+    console.log("generateRecs called. spotifyToken:", spotifyToken ? "present" : "not present", "mood:", mood);
     if (!mood.trim()) return;
     
     // Don't make requests if we don't have a token
     if (!spotifyToken) {
+      console.log("generateRecs: No token available, setting error");
       setRecsErr("Please wait for authentication to complete");
+      setIsGenerating(false); // Ensure loading state is reset
       return;
     }
 

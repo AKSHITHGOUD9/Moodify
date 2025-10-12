@@ -45,7 +45,11 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
       
-      const response = await fetch(`${API}/recommend-v2`, {
+      // Get token from localStorage
+      const token = localStorage.getItem('spotify_token');
+      const url = token ? `${API}/recommend-v2?token=${token}` : `${API}/recommend-v2`;
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
