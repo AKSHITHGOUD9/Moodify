@@ -63,6 +63,9 @@ export default function App() {
         localStorage.setItem('spotify_user_id', userId);
       }
       
+      // Clear any existing errors when token becomes available
+      setRecsErr("");
+      
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
       
@@ -74,6 +77,8 @@ export default function App() {
       console.log("App.jsx: No token in URL, checking localStorage:", storedToken ? "token found" : "no token");
       if (storedToken) {
         setSpotifyToken(storedToken);
+        // Clear any existing errors when token becomes available
+        setRecsErr("");
         // Fetch user data with stored token
         fetchUserDataWithToken(storedToken);
       }
@@ -222,6 +227,12 @@ export default function App() {
    */
   const generateRecs = useCallback(async () => {
     if (!mood.trim()) return;
+    
+    // Don't make requests if we don't have a token
+    if (!spotifyToken) {
+      setRecsErr("Please wait for authentication to complete");
+      return;
+    }
 
     setIsGenerating(true);
     setRecsErr("");
@@ -278,7 +289,7 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
-  }, [mood]);
+  }, [mood, spotifyToken]);
 
   // Memoized tracks to use for playlist creation
   const tracksToUse = useMemo(() => {
