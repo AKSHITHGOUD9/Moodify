@@ -39,6 +39,13 @@ import requests
 from dotenv import load_dotenv
 import openai
 
+# LangChain imports
+from langchain.llms import OpenAI
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from langchain.memory import ConversationBufferMemory
+from langchain.agents import Tool, initialize_agent
+
 # FastAPI and middleware imports
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -151,7 +158,166 @@ async def _ensure_token(request: Request):
     return None
 
 # =============================================================================
-# LLM INTEGRATION (OpenAI)
+# USER PROFILE CACHING
+# =============================================================================
+
+# In-memory cache for user profiles (in production, use Redis)
+user_profile_cache = {}
+
+async def cache_user_music_profile(sp, user_id: str) -> Dict:
+    """Cache user's complete music profile for instant AI recommendations"""
+    try:
+        logger.info(f"Caching music profile for user: {user_id}")
+        
+        # Get comprehensive user data
+        top_tracks_short = await asyncio.to_thread(sp.current_user_top_tracks, limit=50, time_range='short_term')
+        top_tracks_medium = await asyncio.to_thread(sp.current_user_top_tracks, limit=50, time_range='medium_term')
+        top_tracks_long = await asyncio.to_thread(sp.current_user_top_tracks, limit=50, time_range='long_term')
+        top_artists = await asyncio.to_thread(sp.current_user_top_artists, limit=50, time_range='medium_term')
+        
+        # Analyze genres from top artists
+        genres = set()
+        artists = []
+        for artist in top_artists['items']:
+            artists.append(artist['name'])
+            genres.update(artist.get('genres', []))
+        
+        # Analyze eras from tracks
+        eras = set()
+        for track_list in [top_tracks_short, top_tracks_medium, top_tracks_long]:
+            for track in track_list.get('items', []):
+                try:
+                    year = int(track['album']['release_date'][:4])
+                    decade = (year // 10) * 10
+                    eras.add(f"{decade}s")
+                except:
+                    pass
+        
+        # Detect regional preferences
+        regional_preferences = set()
+        all_track_names = []
+        all_artists = []
+        
+        for track_list in [top_tracks_short, top_tracks_medium, top_tracks_long]:
+            for track in track_list.get('items', []):
+                all_track_names.append(track['name'].lower())
+                for artist in track['artists']:
+                    all_artists.append(artist['name'].lower())
+        
+        # Check for regional music indicators
+        regional_keywords = {
+            'telugu': ['telugu', 'tollywood'],
+            'tamil': ['tamil', 'kollywood'],
+            'hindi': ['hindi', 'bollywood'],
+            'malayalam': ['malayalam', 'mollywood'],
+            'kannada': ['kannada', 'sandalwood']
+        }
+        
+        for region, keywords in regional_keywords.items():
+            if any(keyword in ' '.join(all_track_names + all_artists) for keyword in keywords):
+                regional_preferences.add(region)
+        
+        # Create comprehensive profile
+        profile = {
+            "user_id": user_id,
+            "top_artists": artists[:20],
+            "top_genres": list(genres)[:15],
+            "listening_eras": list(eras),
+            "regional_preferences": list(regional_preferences),
+            "total_tracks_analyzed": len(top_tracks_short['items']) + len(top_tracks_medium['items']) + len(top_tracks_long['items']),
+            "cached_at": time.time(),
+            "sample_track_names": all_track_names[:30]  # For AI context
+        }
+        
+        # Cache the profile
+        user_profile_cache[user_id] = profile
+        logger.info(f"Cached profile for user {user_id}: {len(artists)} artists, {len(genres)} genres")
+        
+        return profile
+        
+    except Exception as e:
+        logger.error(f"Error caching user profile for {user_id}: {e}")
+        return {}
+
+async def get_cached_user_profile(user_id: str) -> Dict:
+    """Get cached user profile"""
+    return user_profile_cache.get(user_id, {})
+
+def is_track_relevant_to_profile(track: Dict, user_profile: Dict, query: str) -> bool:
+    """Check if a track is relevant to user's profile and query"""
+    try:
+        track_name = track['name'].lower()
+        artists = ' '.join(track['artists']).lower()
+        album = track['album'].lower()
+        
+        # Check against user's favorite artists
+        if user_profile.get('top_artists'):
+            if any(artist.lower() in artists for artist in user_profile['top_artists'][:10]):
+                return True
+        
+        # Check against user's favorite genres (if we had genre info for tracks)
+        # This would require additional Spotify API calls
+        
+        # Check against regional preferences
+        if user_profile.get('regional_preferences'):
+            for region in user_profile['regional_preferences']:
+                if region.lower() in track_name or region.lower() in artists:
+                    return True
+        
+        # Check against query context
+        query_lower = query.lower()
+        if any(word in track_name or word in artists for word in query_lower.split() if len(word) > 2):
+            return True
+        
+        # Default: include track if it's reasonably popular
+        return track.get('popularity', 0) > 30
+        
+    except Exception as e:
+        logger.error(f"Error checking track relevance: {e}")
+        return True  # Default to including track
+
+# =============================================================================
+# LLM INTEGRATION (LangChain)
+# =============================================================================
+
+# Initialize LangChain components
+llm = OpenAI(temperature=0.3, model_name="gpt-3.5-turbo")
+
+# Music curation prompt template
+music_curation_prompt = PromptTemplate(
+    input_variables=["user_profile", "query"],
+    template="""
+You are an expert music curator with deep knowledge of user preferences and music discovery.
+
+USER'S MUSIC PROFILE:
+{user_profile}
+
+USER REQUEST: "{query}"
+
+Based on the user's listening history, generate 4-5 HIGHLY SPECIFIC search queries for Spotify that will find the most relevant tracks.
+
+CRITICAL RULES:
+1. Use the user's favorite artists and genres from their profile
+2. For regional music (Telugu, Tamil, Hindi), focus ONLY on that language
+3. For era requests (old, 90s, vintage), focus on that specific time period
+4. For mood requests (chill, party, sad), combine with user's genre preferences
+5. Be culturally and linguistically accurate
+6. Use actual artist names, album names, and specific terms from the user's profile
+
+Generate search queries that combine the user's preferences with their specific request:
+
+"""
+)
+
+# Create the music curation chain
+music_curation_chain = LLMChain(
+    llm=llm,
+    prompt=music_curation_prompt,
+    verbose=True
+)
+
+# =============================================================================
+# LLM INTEGRATION (OpenAI) - Legacy
 # =============================================================================
 
 async def query_openai_for_history_selection(query: str, music_history: List[Dict]) -> List[str]:
@@ -370,57 +536,7 @@ async def validate_track_ids(sp, track_ids: List[str]) -> List[str]:
     logger.info(f"Validated {len(valid_tracks)}/{len(track_ids)} track IDs")
     return valid_tracks
 
-async def get_spotify_recommendations(sp, seed_track_ids: List[str], query: str) -> List[Dict]:
-    """Use Spotify's recommendation API with seed tracks to get new recommendations"""
-    try:
-        # Validate track IDs before using them
-        valid_track_ids = await validate_track_ids(sp, seed_track_ids)
-        
-        if not valid_track_ids:
-            logger.warning("No valid track IDs found for recommendations")
-            return []
-        
-        logger.info(f"Using {len(valid_track_ids)} validated track IDs for recommendations")
-        
-        recommendations = await asyncio.to_thread(
-            sp.recommendations,
-            seed_tracks=valid_track_ids[:5],  # Spotify allows max 5 seed tracks
-            limit=20,
-            market=None  # Global market - works for all regions
-        )
-        
-        new_tracks = []
-        if isinstance(recommendations, dict) and 'tracks' in recommendations:
-            for track in recommendations['tracks']:
-                if track and track.get('id'):
-                    track_data = {
-                        'id': track['id'],
-                        'name': track['name'],
-                        'artists': [artist['name'] for artist in track.get('artists', [])],
-                        'album': track.get('album', {}).get('name', 'Unknown Album'),
-                        'album_image': None,
-                        'external_url': track.get('external_urls', {}).get('spotify'),
-                        'preview_url': track.get('preview_url'),
-                        'popularity': track.get('popularity', 0)
-                    }
-                    
-                    # Get album image with fallback
-                    album_images = track.get('album', {}).get('images', [])
-                    if album_images:
-                        track_data['album_image'] = album_images[0]['url']
-                    else:
-                        # Use a generic album cover as fallback
-                        track_data['album_image'] = 'https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+Cover'
-                    
-                    new_tracks.append(track_data)
-        
-        logger.info(f"Generated {len(new_tracks)} new recommendations from Spotify API")
-        return new_tracks
-        
-    except Exception as e:
-        logger.error(f"Error getting Spotify recommendations: {e}")
-        logger.error(f"Failed track IDs: {seed_track_ids}")
-        return []
+# Spotify recommendations API removed - now using pure AI + search approach
 
 async def get_ai_curated_recommendations(sp, query: str, user_tracks: List[dict] = None) -> List[Dict]:
     """Advanced AI-powered recommendation system that analyzes user taste and query intent"""
@@ -1446,6 +1562,10 @@ async def callback(request: Request, code: str = None, error: str = None):
             logger.error("No authorization code received")
             return RedirectResponse(url=f"{POST_LOGIN_REDIRECT}?error=no_code")
         
+        # Clear any existing session to prevent conflicts
+        request.session.clear()
+        logger.info("Cleared existing session to prevent user conflicts")
+        
         auth_manager = get_spotify_oauth()
         token_info = auth_manager.get_access_token(code)
         
@@ -1453,19 +1573,30 @@ async def callback(request: Request, code: str = None, error: str = None):
             logger.error("Failed to get access token")
             return RedirectResponse(url=f"{POST_LOGIN_REDIRECT}?error=token_failed")
         
-        # Store token in session (for backward compatibility)
-        request.session["spotify_token_info"] = token_info
-        
-        logger.info("User successfully authenticated")
-        logger.info(f"Session keys after storing token: {list(request.session.keys())}")
-        
-        # Get user info to pass to frontend
+        # Get user info BEFORE storing in session
         sp = spotipy.Spotify(auth=token_info["access_token"])
         user = sp.current_user()
+        user_id = user.get("id", "")
+        
+        # Store user-specific session data
+        request.session["user_id"] = user_id
+        request.session["spotify_token_info"] = token_info
+        
+        logger.info(f"User {user_id} successfully authenticated")
+        logger.info(f"Session keys after storing token: {list(request.session.keys())}")
+        
+        # Cache user's music profile in background (non-blocking)
+        try:
+            # Import the caching function we'll create
+            from main import cache_user_music_profile
+            # Don't await - let it run in background
+            asyncio.create_task(cache_user_music_profile(sp, user_id))
+            logger.info(f"Started background caching for user {user_id}")
+        except Exception as e:
+            logger.warning(f"Could not start profile caching: {e}")
         
         # Add token and user info to URL for frontend to store
         token = token_info.get("access_token", "")
-        user_id = user.get("id", "")
         redirect_url = f"{POST_LOGIN_REDIRECT}?token={token}&user_id={user_id}"
         
         return RedirectResponse(url=redirect_url)
@@ -1860,8 +1991,8 @@ async def recommend_tracks(request: Request, query: dict):
             new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
         else:
             logger.info(f"Using music history with {len(music_history)} tracks")
-            selected_track_ids = await query_openai_for_history_selection(user_query, music_history)
-            new_recommendations = await get_spotify_recommendations(sp, selected_track_ids, user_query)
+            # Use AI-powered search instead of Spotify recommendations
+            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
         
         return {
             "query": user_query,
@@ -1878,7 +2009,7 @@ async def recommend_tracks(request: Request, query: dict):
 
 @app.post("/recommend-v2")
 async def get_recommendations_v2(request: Request, data: dict, token: str = None):
-    """Get AI-powered music recommendations using OpenAI GPT"""
+    """Get AI-powered music recommendations using LangChain and cached user profiles"""
     try:
         user_query = data.get("query", "").strip()
         if not user_query:
@@ -1887,53 +2018,103 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
         # Try token-based authentication first
         if token:
             sp = spotipy.Spotify(auth=token)
+            # Get user info to retrieve cached profile
+            user_info = await asyncio.to_thread(sp.current_user)
+            user_id = user_info.get("id", "")
         else:
             # Fallback to session-based authentication
             sp = await _ensure_token(request)
+            if not sp:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            user_id = request.session.get("user_id", "")
+        
         if not sp:
             raise HTTPException(status_code=401, detail="Not authenticated")
         
-        # Step 1: Get user's music history
-        music_history = await get_user_music_history(sp)
+        # Step 1: Get cached user profile (instant)
+        user_profile = await get_cached_user_profile(user_id)
         
-        # Handle new users with no music history
-        if not music_history:
-            logger.info("No music history found, using fallback recommendations")
-            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
-            history_tracks = []  # No history tracks for new users
-        else:
-            # Step 2: Use smart filtering to select relevant tracks from user's history
-            logger.info("Using smart history filtering instead of OpenAI selection")
+        if not user_profile:
+            logger.info(f"No cached profile for user {user_id}, creating one now")
+            user_profile = await cache_user_music_profile(sp, user_id)
+        
+        # Step 2: Use LangChain to generate personalized search queries
+        logger.info(f"Using LangChain to generate queries for user {user_id}")
+        try:
+            search_queries_text = await music_curation_chain.arun(
+                user_profile=json.dumps(user_profile, indent=2),
+                query=user_query
+            )
+            
+            # Parse the AI-generated queries
+            search_queries = []
+            for line in search_queries_text.split('\n'):
+                line = line.strip()
+                if line and not line.startswith(('#', '-', '*', '1.', '2.', '3.', '4.', '5.')):
+                    # Clean up the query
+                    query = re.sub(r'^[\d\.\-\*\s]+', '', line).strip()
+                    if query and len(query) > 3:
+                        search_queries.append(query)
+            
+            # Add original query as fallback
+            if user_query not in search_queries:
+                search_queries.append(user_query)
+                
+            logger.info(f"LangChain generated queries: {search_queries}")
+            
+        except Exception as e:
+            logger.error(f"LangChain query generation failed: {e}")
+            search_queries = [user_query]
+        
+        # Step 3: Search Spotify with AI-generated queries
+        all_tracks = []
+        for search_query in search_queries[:5]:  # Limit to 5 queries
+            tracks = await search_spotify_tracks(sp, search_query)
+            all_tracks.extend(tracks)
+        
+        # Step 4: Remove duplicates and apply intelligent filtering
+        unique_tracks = {}
+        for track in all_tracks:
+            if track['id'] not in unique_tracks:
+                unique_tracks[track['id']] = track
+        
+        # Step 5: Apply user profile-based filtering
+        filtered_tracks = []
+        for track in unique_tracks.values():
+            if is_track_relevant_to_profile(track, user_profile, user_query):
+                filtered_tracks.append(track)
+        
+        # Step 6: Get history tracks using smart filtering
+        music_history = await get_user_music_history(sp)
+        history_tracks = []
+        if music_history:
             filtered_history = await filter_user_history_by_query(music_history, user_query)
-            
-            # Always use fallback since Spotify APIs are returning 403/404
-            logger.warning("Using fallback recommendations due to Spotify API issues")
-            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
-            
-            # Step 3: Format the filtered history tracks for display
-            history_tracks = []
             for track in filtered_history:
-                        track_data = {
-                            'id': track['id'],
-                            'name': track['name'],
-                            'artists': track['artists'],
-                            'album': track['album'],
-                    'album_image': track.get('album_image'),  # Use existing album_image
-                            'external_url': f"https://open.spotify.com/track/{track['id']}",
+                track_data = {
+                    'id': track['id'],
+                    'name': track['name'],
+                    'artists': track['artists'],
+                    'album': track['album'],
+                    'album_image': track.get('album_image'),
+                    'external_url': f"https://open.spotify.com/track/{track['id']}",
                     'preview_url': track.get('preview_url'),
                     'popularity': track.get('popularity', 0),
-                    'duration_ms': track.get('duration_ms', 180000)  # Default 3 minutes if missing
-                        }
-                        history_tracks.append(track_data)
+                    'duration_ms': track.get('duration_ms', 180000)
+                }
+                history_tracks.append(track_data)
         
-        logger.info(f"Returning {len(history_tracks)} history tracks and {len(new_recommendations)} new recommendations")
+        # Sort by popularity and limit results
+        filtered_tracks.sort(key=lambda x: x.get('popularity', 0), reverse=True)
+        new_recommendations = filtered_tracks[:20]
+        
+        logger.info(f"Returning {len(history_tracks)} history tracks and {len(new_recommendations)} AI-curated recommendations")
         
         return {
             "user_history_recs": history_tracks,
             "new_recs": new_recommendations,
-            "tracks": new_recommendations,  # Frontend expects this
+            "tracks": new_recommendations,
             "query": user_query,
-            "method": "OpenAI GPT + Spotify Seeds"
+            "method": "LangChain AI + Cached User Profile"
         }
         
     except HTTPException:

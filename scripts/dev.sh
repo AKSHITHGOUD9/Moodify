@@ -32,7 +32,7 @@ echo "====================================="
 # =============================================================================
 
 # Verify we're in the correct project directory
-if [ ! -f "README.md" ] || [ ! -d "backend" ] || [ ! -d "moodify-web" ]; then
+if [ ! -f "README.md" ] || [ ! -d "backend-openai" ] || [ ! -d "moodify-web" ]; then
     echo "❌ Error: Please run this script from the project root directory"
     exit 1
 fi
@@ -56,9 +56,10 @@ trap cleanup SIGINT SIGTERM
 # =============================================================================
 
 # Check if backend .env exists (required for Spotify API)
-if [ ! -f "backend/.env" ]; then
-    echo "⚠️  Backend .env file not found. Please run setup first:"
-    echo "   ./scripts/deploy.sh"
+if [ ! -f "backend-openai/.env" ]; then
+    echo "⚠️  Backend .env file not found. Please create it from env.example:"
+    echo "   cp backend-openai/env.example backend-openai/.env"
+    echo "   # Then edit backend-openai/.env with your credentials"
     exit 1
 fi
 
@@ -73,12 +74,15 @@ fi
 # =============================================================================
 
 echo "\n🐍 Starting backend server..."
-cd backend
+cd backend-openai
 
 # Verify Python virtual environment exists
 if [ ! -d "venv" ]; then
-    echo "❌ Virtual environment not found. Please run setup first:"
-    echo "   ./scripts/deploy.sh"
+    echo "❌ Virtual environment not found. Please create it:"
+    echo "   cd backend-openai"
+    echo "   python3 -m venv venv"
+    echo "   source venv/bin/activate"
+    echo "   pip install -r requirements.txt"
     exit 1
 fi
 

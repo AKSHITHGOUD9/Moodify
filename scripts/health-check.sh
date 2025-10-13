@@ -43,7 +43,7 @@ if curl -s -f "http://127.0.0.1:8000/" > /dev/null; then
     fi
 else
     echo "❌ Backend is not responding"
-    echo "   Make sure to start it with: cd backend && uvicorn main:app --reload --host 127.0.0.1"
+    echo "   Make sure to start it with: cd backend-openai && uvicorn main:app --reload --host 127.0.0.1"
 fi
 
 # =============================================================================
