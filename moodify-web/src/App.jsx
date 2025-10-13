@@ -371,8 +371,10 @@ export default function App() {
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && mood.trim() && !isGenerating) {
       setIsTyping(false); // Clear typing state when searching
-      // The RecommendationGridV2 component will handle the generation
-      // No need to call generateRecs() anymore
+      // Trigger RecommendationGridV2 to generate recommendations
+      if (recommendationRef.current) {
+        recommendationRef.current.triggerGeneration();
+      }
     }
   }, [mood, isGenerating]);
 
@@ -475,7 +477,7 @@ export default function App() {
                           recommendationRef.current.triggerGeneration();
                         }
                       })}
-                      disabled={!mood.trim() && !isGenerating}
+                      disabled={!mood.trim()}
                       title={isGenerating ? "Stop generation" : isTyping ? "Pause typing" : "Start search"}
                     >
                       {isGenerating ? (
