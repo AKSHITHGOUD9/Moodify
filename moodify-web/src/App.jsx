@@ -28,9 +28,9 @@ export default function App() {
   const [recsErr, setRecsErr] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [typingTimeout, setTypingTimeout] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [analytics, setAnalytics] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [playlists, setPlaylists] = useState(null);
@@ -352,34 +352,24 @@ export default function App() {
 
   // Memoized filtered suggestions for better performance
 
-  // Search suggestions handling
+  // Search input handling - no auto-search, only manual trigger
   const handleSearchInputChange = useCallback((e) => {
     const value = e.target.value;
     setMood(value);
     setIsTyping(value.trim().length > 0);
     
-    // Clear existing timeout
-    if (typingTimeout) {
-      clearTimeout(typingTimeout);
-    }
-    
-    if (value.trim().length > 0) {
-      // Set timeout to hide AI button after user stops typing
-      const timeout = setTimeout(() => {
-        setIsTyping(false);
-      }, 1000);
-      setTypingTimeout(timeout);
-    } else {
-      // Clear recommendations when search is cleared
+    // Clear recommendations when search is cleared
+    if (value.trim().length === 0) {
       setRecs([]);
       setTrackIds([]);
       setRecommendationData(null);
     }
-  }, [typingTimeout]);
+  }, []);
 
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && mood.trim() && !isGenerating) {
+      setIsTyping(false); // Clear typing state when searching
       generateRecs();
     }
   }, [mood, isGenerating]);
@@ -420,6 +410,9 @@ export default function App() {
 
           {me && (
             <div className="transparent-nav">
+              <button className="ghost-btn" onClick={() => setShowHowItWorks(true)}>
+                How it Works
+              </button>
               <button className="ghost-btn" onClick={toggleDashboard}>
                 Your Dashboard
               </button>
@@ -472,10 +465,13 @@ export default function App() {
                       onKeyDown={handleKeyDown}
                     />
                     <button
-                      className={`play-pause-btn ${isGenerating ? 'loading' : isTyping ? 'pause' : 'play'}`}
-                      onClick={isGenerating ? () => setIsGenerating(false) : (mood.trim() ? generateRecs : null)}
+                      className={`go-btn ${isGenerating ? 'loading' : 'ready'}`}
+                      onClick={isGenerating ? () => setIsGenerating(false) : (() => {
+                        setIsTyping(false);
+                        generateRecs();
+                      })}
                       disabled={!mood.trim() && !isGenerating}
-                      title={isGenerating ? "Stop generation" : isTyping ? "Pause typing" : "Start search"}
+                      title={isGenerating ? "Stop generation" : "Search"}
                     >
                       {isGenerating ? (
                         <div className="loading-animation">
@@ -483,15 +479,8 @@ export default function App() {
                           <div className="loading-dot"></div>
                           <div className="loading-dot"></div>
                         </div>
-                      ) : isTyping ? (
-                        <div className="pause-animation">
-                          <div className="pause-bar"></div>
-                          <div className="pause-bar"></div>
-                        </div>
                       ) : (
-                        <div className="play-animation">
-                          <div className="play-triangle"></div>
-                        </div>
+                        <span>Go</span>
                       )}
                     </button>
                     
@@ -966,6 +955,65 @@ export default function App() {
                 {JSON.stringify(me, null, 2)}
               </pre>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* How it Works Modal */}
+      {showHowItWorks && (
+        <div className="how-it-works-overlay">
+          <div className="how-it-works-container">
+            <div className="how-it-works-header">
+              <h2>How Moodify Works</h2>
+              <button 
+                className="close-btn" 
+                onClick={() => setShowHowItWorks(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="how-it-works-content">
+              <div className="step">
+                <div className="step-number">1</div>
+                <div className="step-content">
+                  <h3>🎵 We Analyze Your Music</h3>
+                  <p>When you connect Spotify, we analyze your listening history to understand your musical taste - your favorite artists, genres, and regional preferences.</p>
+                </div>
+              </div>
+              
+              <div className="step">
+                <div className="step-number">2</div>
+                <div className="step-content">
+                  <h3>🤖 AI Creates Your Profile</h3>
+                  <p>Our AI builds a personalized music profile based on your Spotify data, learning what you love to listen to.</p>
+                </div>
+              </div>
+              
+              <div className="step">
+                <div className="step-number">3</div>
+                <div className="step-content">
+                  <h3>🔍 Smart Search & Recommendations</h3>
+                  <p>When you search for "chill old Telugu songs," our AI uses your profile to find specific songs you'll actually love, not just generic suggestions.</p>
+                </div>
+              </div>
+              
+              <div className="step">
+                <div className="step-number">4</div>
+                <div className="step-content">
+                  <h3>✨ Personalized Results</h3>
+                  <p>Get recommendations from your history and discover new songs that match your unique taste - all powered by AI, not just algorithms.</p>
+                </div>
+              </div>
+            </div>
+            <div className="how-it-works-footer">
+              <p><strong>Simple, Smart, Personal.</strong> That's Moodify.</p>
+              <button 
+                className="got-it-btn" 
+                onClick={() => setShowHowItWorks(false)}
+              >
+                Got it!
+              </button>
+            </div>
           </div>
         </div>
       )}

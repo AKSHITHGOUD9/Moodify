@@ -754,29 +754,11 @@ Generate 8-10 specific search queries:
         
     except Exception as e:
         logger.error(f"Error in AI curation: {e}")
-        # Fallback to search-based recommendations
-        return await get_search_based_recommendations(sp, query, user_tracks or [])
-
-async def get_fallback_recommendations(sp, query: str, user_tracks: List[dict] = None) -> List[Dict]:
-    """Get recommendations using search-based approach with user context"""
-    try:
-        logger.info(f"Getting fallback recommendations for query: {query}")
-        
-        # Use advanced AI curation instead of basic search
-        logger.info("Using AI-curated recommendations")
-        new_tracks = await get_ai_curated_recommendations(sp, query, user_tracks or [])
-        
-        if new_tracks:
-            logger.info(f"Generated {len(new_tracks)} search-based recommendations")
-            return new_tracks
-        else:
-            # Fallback to generic popular tracks
-            logger.info("Using generic popular tracks as final fallback")
-            return await get_generic_popular_tracks(sp)
-        
-    except Exception as e:
-        logger.error(f"Error getting fallback recommendations: {e}")
+        # Return empty if AI curation fails
+        logger.error("AI curation completely failed")
         return []
+
+# Fallback system removed - now using pure AI approach
 
 async def generate_enhanced_search_queries(user_query: str, user_tracks: List[dict] = None) -> List[str]:
     """Use OpenAI to generate better search queries for Spotify with user context"""
@@ -987,16 +969,24 @@ async def filter_user_history_by_query(user_tracks: List[dict], query: str) -> L
                 if any(genre in ['hip hop', 'rap'] for genre in track_genres):
                     score += 10
                     
-            # Regional language matching
+            # Regional language matching - STRICT for regional queries
             for language, keywords in regional_keywords.items():
                 if any(keyword in query_lower for keyword in keywords):
                     # Check if track/artist names suggest this language
                     if any(keyword in track_name for keyword in keywords):
-                        score += 15
+                        score += 20  # Higher score for regional matches
                     if any(keyword in ' '.join(track_artists) for keyword in keywords):
-                        score += 12
+                        score += 18  # Higher score for regional artists
                     if any(keyword in track_album for keyword in keywords):
-                        score += 8
+                        score += 15  # Higher score for regional albums
+                    
+                    # Additional checks for regional music indicators
+                    if language == 'telugu' and any(indicator in track_name for indicator in ['telugu', 'tollywood', 'andhra']):
+                        score += 25  # Very high score for Telugu
+                    elif language == 'tamil' and any(indicator in track_name for indicator in ['tamil', 'kollywood', 'chennai']):
+                        score += 25  # Very high score for Tamil
+                    elif language == 'hindi' and any(indicator in track_name for indicator in ['hindi', 'bollywood', 'india']):
+                        score += 25  # Very high score for Hindi
                         
             # Mood matching
             for mood, keywords in mood_keywords.items():
@@ -1045,13 +1035,17 @@ async def filter_user_history_by_query(user_tracks: List[dict], query: str) -> L
                     if word in track_album:
                         score += 4
                         
-            # If no specific matches found, be more lenient for regional queries
+            # If no specific matches found, be VERY lenient for regional queries
             if score == 0 and any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']):
-                # Give some score to any tracks that might be regional
+                # Give score to ANY tracks that might be regional - show ALL regional songs
                 if any(lang in track_name.lower() for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']):
-                    score += 3
+                    score += 8  # Higher score for any regional track name
                 if any(lang in ' '.join(track_artists).lower() for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']):
-                    score += 4
+                    score += 10  # Higher score for any regional artist
+                
+                # Additional lenient checks for regional music patterns
+                if any(pattern in track_name.lower() for pattern in ['song', 'music', 'film', 'movie', 'soundtrack']):
+                    score += 5  # Bonus for music-related terms in regional context
                         
             # Bonus for exact matches
             if query_lower in track_name:
@@ -1059,14 +1053,15 @@ async def filter_user_history_by_query(user_tracks: List[dict], query: str) -> L
             if any(query_lower in artist for artist in track_artists):
                 score += 12
                 
-            # Lower threshold to include more tracks, especially for regional queries
-            min_score = 1 if any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']) else 2
+            # VERY low threshold for regional queries to show ALL regional songs
+            min_score = 0 if any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']) else 2
             if score >= min_score:
                 relevant_tracks.append((track, score))
         
-        # Sort by relevance score and return top 10
+        # Sort by relevance score and return more tracks for regional queries
         relevant_tracks.sort(key=lambda x: x[1], reverse=True)
-        filtered_tracks = [track for track, score in relevant_tracks[:10]]
+        max_tracks = 15 if any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']) else 10
+        filtered_tracks = [track for track, score in relevant_tracks[:max_tracks]]
         
         logger.info(f"Filtered to {len(filtered_tracks)} relevant tracks from user history")
         return filtered_tracks
@@ -1777,8 +1772,8 @@ async def get_top_tracks(request: Request, token: str = None):
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-    if not sp:
-        return {"error": "Not authenticated"}
+        if not sp:
+            return {"error": "Not authenticated"}
     
     try:
         # Get user's top tracks (short term - last 4 weeks)
@@ -1862,8 +1857,8 @@ async def get_user_playlists(request: Request, token: str = None):
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-    if not sp:
-        return {"error": "Not authenticated"}
+        if not sp:
+            return {"error": "Not authenticated"}
     
     try:
         # Get user's playlists
@@ -1898,8 +1893,8 @@ async def get_album_covers(request: Request, token: str = None):
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-    if not sp:
-        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+        if not sp:
+            return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
     try:
         # Get user's top tracks from different time ranges
@@ -1982,8 +1977,8 @@ async def create_custom_playlist(request: Request, playlist_data: dict, token: s
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-    if not sp:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        if not sp:
+            raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
         # Get playlist data
@@ -2051,14 +2046,13 @@ async def recommend_tracks(request: Request, query: dict):
         music_history = await get_user_music_history(sp)
         logger.info(f"Music history length: {len(music_history) if music_history else 0}")
         
-        # Handle new users with no music history
-        if not music_history or len(music_history) == 0:
-            logger.info("No music history found, using fallback recommendations")
-            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
-        else:
-            logger.info(f"Using music history with {len(music_history)} tracks")
-            # Use AI-powered search instead of Spotify recommendations
-            new_recommendations = await get_fallback_recommendations(sp, user_query, music_history)
+        # Use AI curation for all users (with or without history)
+        logger.info(f"Using AI curation for query: {user_query}")
+        new_recommendations = await get_ai_curated_recommendations(sp, user_query, music_history)
+        
+        if not new_recommendations:
+            logger.warning("AI curation failed - no recommendations available")
+            raise HTTPException(status_code=500, detail="Unable to generate recommendations at this time")
         
         return {
             "query": user_query,

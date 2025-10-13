@@ -22,8 +22,8 @@ spotipy==2.24.0
 # OpenAI - OpenAI API client for GPT models
 openai>=1.0.0
 
-# Note: LangChain removed to avoid deployment issues
-# Using direct OpenAI integration instead
+# LiteLLM - Multi-provider LLM integration
+litellm>=1.0.0
 
 # Redis - For caching user profiles (optional for future use)
 redis>=4.0.0
