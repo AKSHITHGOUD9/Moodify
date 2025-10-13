@@ -213,7 +213,7 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
             if any(keyword in ' '.join(all_track_names + all_artists) for keyword in keywords):
                 regional_preferences.add(region)
         
-        # Create comprehensive profile
+        # Create comprehensive profile with detailed track information
         profile = {
             "user_id": user_id,
             "top_artists": artists[:20],
@@ -222,8 +222,30 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
             "regional_preferences": list(regional_preferences),
             "total_tracks_analyzed": len(top_tracks_short['items']) + len(top_tracks_medium['items']) + len(top_tracks_long['items']),
             "cached_at": time.time(),
-            "sample_track_names": all_track_names[:30]  # For AI context
+            "sample_track_names": all_track_names[:30],  # For AI context
+            "detailed_tracks": []  # Store detailed track info for AI
         }
+        
+        # Add detailed track information for AI analysis
+        for track_list in [top_tracks_short, top_tracks_medium, top_tracks_long]:
+            for track in track_list.get('items', []):
+                try:
+                    year = int(track['album']['release_date'][:4])
+                    decade = (year // 10) * 10
+                    track_info = {
+                        "name": track['name'],
+                        "artists": [artist['name'] for artist in track.get('artists', [])],
+                        "album": track.get('album', {}).get('name', 'Unknown'),
+                        "year": year,
+                        "decade": f"{decade}s",
+                        "popularity": track.get('popularity', 0)
+                    }
+                    profile["detailed_tracks"].append(track_info)
+                except:
+                    pass
+        
+        # Limit detailed tracks to top 50 for performance
+        profile["detailed_tracks"] = profile["detailed_tracks"][:50]
         
         # Cache the profile
         user_profile_cache[user_id] = profile
@@ -283,36 +305,58 @@ async def generate_personalized_search_queries(user_profile: Dict, query: str) -
             logger.warning("OpenAI client not available, using fallback")
             return [query]
         
-        # Create a comprehensive prompt
+        # Extract detailed user information
+        top_artists = user_profile.get('top_artists', [])[:10]
+        sample_tracks = user_profile.get('sample_track_names', [])[:20]
+        genres = user_profile.get('top_genres', [])[:10]
+        regional_prefs = user_profile.get('regional_preferences', [])
+        detailed_tracks = user_profile.get('detailed_tracks', [])[:20]
+        
+        # Build track context string
+        track_context = ""
+        if detailed_tracks:
+            track_context = "RECENT TRACKS:\n"
+            for track in detailed_tracks[:15]:  # Show top 15 tracks
+                track_context += f"- {track['name']} by {', '.join(track['artists'])} ({track['year']})\n"
+        
+        # Create a comprehensive prompt focused on specific song searches
         prompt = f"""
-You are an expert music curator with deep knowledge of user preferences and music discovery.
+You are an expert music curator analyzing a user's music profile to find SPECIFIC SONGS that match their request.
 
 USER'S MUSIC PROFILE:
-{json.dumps(user_profile, indent=2)}
+- Top Artists: {', '.join(top_artists)}
+- Favorite Genres: {', '.join(genres)}
+- Regional Preferences: {', '.join(regional_prefs)}
+
+{track_context}
 
 USER REQUEST: "{query}"
 
-Based on the user's listening history, generate 4-5 HIGHLY SPECIFIC search queries for Spotify that will find the most relevant tracks.
+TASK: Generate 4-5 SPECIFIC search queries that will find actual songs similar to what this user already listens to.
 
 CRITICAL RULES:
-1. Use the user's favorite artists and genres from their profile
-2. For regional music (Telugu, Tamil, Hindi), focus ONLY on that language
-3. For era requests (old, 90s, vintage), focus on that specific time period
-4. For mood requests (chill, party, sad), combine with user's genre preferences
-5. Be culturally and linguistically accurate
-6. Use actual artist names, album names, and specific terms from the user's profile
+1. Use SPECIFIC SONG NAMES from the user's recent tracks when relevant
+2. Combine user's favorite artists with the mood/era/genre they're asking for
+3. For "chill" + "old" + language: search for specific chill songs by their favorite artists
+4. For "old" requests: focus on songs from the 90s-2010s era that match their taste
+5. Use actual song titles, not generic terms like "old hindi chill songs"
+6. Prioritize songs by artists they already listen to
+7. Be specific: "Zara Sa" instead of "chill hindi songs"
 
-Generate search queries that combine the user's preferences with their specific request.
-Return only the search queries, one per line, without numbering or bullet points:
+EXAMPLES OF GOOD QUERIES:
+- "Zara Sa Arijit Singh" (specific song + artist they like)
+- "Tum Hi Ho old hindi romantic" (specific song + context)
+- "Channa Mereya old hindi" (specific song + era)
 
+Generate search queries that will find SPECIFIC SONGS this user would love:
 """
         
         response = await asyncio.to_thread(
             openai_client.chat.completions.create,
-            model="gpt-3.5-turbo",
+            model="gpt-4o",  # Using GPT-4o for better results
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=300,
-            temperature=0.3
+            max_tokens=400,
+            temperature=0.2
         )
         
         search_queries_text = response.choices[0].message.content.strip()
@@ -331,7 +375,7 @@ Return only the search queries, one per line, without numbering or bullet points
         if query not in search_queries:
             search_queries.append(query)
         
-        logger.info(f"Generated personalized queries: {search_queries}")
+        logger.info(f"Generated specific song queries: {search_queries}")
         return search_queries
         
     except Exception as e:
