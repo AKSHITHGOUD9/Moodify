@@ -39,12 +39,8 @@ import requests
 from dotenv import load_dotenv
 import openai
 
-# LangChain imports
-from langchain.llms import OpenAI
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain.memory import ConversationBufferMemory
-from langchain.agents import Tool, initialize_agent
+# Note: LangChain imports removed to avoid deployment issues
+# Using direct OpenAI integration instead
 
 # FastAPI and middleware imports
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
@@ -277,20 +273,22 @@ def is_track_relevant_to_profile(track: Dict, user_profile: Dict, query: str) ->
         return True  # Default to including track
 
 # =============================================================================
-# LLM INTEGRATION (LangChain)
+# LLM INTEGRATION (Direct OpenAI)
 # =============================================================================
 
-# Initialize LangChain components
-llm = OpenAI(temperature=0.3, model_name="gpt-3.5-turbo")
-
-# Music curation prompt template
-music_curation_prompt = PromptTemplate(
-    input_variables=["user_profile", "query"],
-    template="""
+async def generate_personalized_search_queries(user_profile: Dict, query: str) -> List[str]:
+    """Generate personalized search queries using OpenAI directly"""
+    try:
+        if not openai_client:
+            logger.warning("OpenAI client not available, using fallback")
+            return [query]
+        
+        # Create a comprehensive prompt
+        prompt = f"""
 You are an expert music curator with deep knowledge of user preferences and music discovery.
 
 USER'S MUSIC PROFILE:
-{user_profile}
+{json.dumps(user_profile, indent=2)}
 
 USER REQUEST: "{query}"
 
@@ -304,17 +302,41 @@ CRITICAL RULES:
 5. Be culturally and linguistically accurate
 6. Use actual artist names, album names, and specific terms from the user's profile
 
-Generate search queries that combine the user's preferences with their specific request:
+Generate search queries that combine the user's preferences with their specific request.
+Return only the search queries, one per line, without numbering or bullet points:
 
 """
-)
-
-# Create the music curation chain
-music_curation_chain = LLMChain(
-    llm=llm,
-    prompt=music_curation_prompt,
-    verbose=True
-)
+        
+        response = await asyncio.to_thread(
+            openai_client.chat.completions.create,
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+            temperature=0.3
+        )
+        
+        search_queries_text = response.choices[0].message.content.strip()
+        
+        # Parse the AI-generated queries
+        search_queries = []
+        for line in search_queries_text.split('\n'):
+            line = line.strip()
+            if line and not line.startswith(('#', '-', '*', '1.', '2.', '3.', '4.', '5.')):
+                # Clean up the query
+                query_clean = re.sub(r'^[\d\.\-\*\s]+', '', line).strip()
+                if query_clean and len(query_clean) > 3:
+                    search_queries.append(query_clean)
+        
+        # Add original query as fallback
+        if query not in search_queries:
+            search_queries.append(query)
+        
+        logger.info(f"Generated personalized queries: {search_queries}")
+        return search_queries
+        
+    except Exception as e:
+        logger.error(f"Error generating personalized queries: {e}")
+        return [query]
 
 # =============================================================================
 # LLM INTEGRATION (OpenAI) - Legacy
@@ -2038,33 +2060,9 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             logger.info(f"No cached profile for user {user_id}, creating one now")
             user_profile = await cache_user_music_profile(sp, user_id)
         
-        # Step 2: Use LangChain to generate personalized search queries
-        logger.info(f"Using LangChain to generate queries for user {user_id}")
-        try:
-            search_queries_text = await music_curation_chain.arun(
-                user_profile=json.dumps(user_profile, indent=2),
-                query=user_query
-            )
-            
-            # Parse the AI-generated queries
-            search_queries = []
-            for line in search_queries_text.split('\n'):
-                line = line.strip()
-                if line and not line.startswith(('#', '-', '*', '1.', '2.', '3.', '4.', '5.')):
-                    # Clean up the query
-                    query = re.sub(r'^[\d\.\-\*\s]+', '', line).strip()
-                    if query and len(query) > 3:
-                        search_queries.append(query)
-            
-            # Add original query as fallback
-            if user_query not in search_queries:
-                search_queries.append(user_query)
-                
-            logger.info(f"LangChain generated queries: {search_queries}")
-            
-        except Exception as e:
-            logger.error(f"LangChain query generation failed: {e}")
-            search_queries = [user_query]
+        # Step 2: Use OpenAI to generate personalized search queries
+        logger.info(f"Using OpenAI to generate personalized queries for user {user_id}")
+        search_queries = await generate_personalized_search_queries(user_profile, user_query)
         
         # Step 3: Search Spotify with AI-generated queries
         all_tracks = []
@@ -2114,7 +2112,7 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
             "new_recs": new_recommendations,
             "tracks": new_recommendations,
             "query": user_query,
-            "method": "LangChain AI + Cached User Profile"
+            "method": "OpenAI AI + Cached User Profile"
         }
         
     except HTTPException:
