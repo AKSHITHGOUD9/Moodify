@@ -22,6 +22,12 @@ spotipy==2.24.0
 # OpenAI - OpenAI API client for GPT models
 openai>=1.0.0
 
+# Hugging Face - Free AI models
+huggingface_hub>=0.16.0
+
+# Google Gemini - Free AI model
+google-generativeai>=0.3.0
+
 # LiteLLM - Multi-provider LLM integration
 litellm>=1.0.0
 

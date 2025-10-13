@@ -40,6 +40,7 @@ export default function App() {
   // Always using AI system - toggle removed
   const [recommendationData, setRecommendationData] = useState(null);
   const [spotifyToken, setSpotifyToken] = useState(null);
+  const recommendationRef = useRef(null);
 
   // =========================================================================
   // DATA FETCHING & LOGIC
@@ -370,7 +371,8 @@ export default function App() {
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && mood.trim() && !isGenerating) {
       setIsTyping(false); // Clear typing state when searching
-      generateRecs();
+      // The RecommendationGridV2 component will handle the generation
+      // No need to call generateRecs() anymore
     }
   }, [mood, isGenerating]);
 
@@ -468,7 +470,10 @@ export default function App() {
                       className={`play-pause-btn ${isGenerating ? 'loading' : isTyping ? 'pause' : 'play'}`}
                       onClick={isGenerating ? () => setIsGenerating(false) : (() => {
                         setIsTyping(false);
-                        generateRecs();
+                        // Trigger RecommendationGridV2 to generate recommendations
+                        if (recommendationRef.current) {
+                          recommendationRef.current.triggerGeneration();
+                        }
                       })}
                       disabled={!mood.trim() && !isGenerating}
                       title={isGenerating ? "Stop generation" : isTyping ? "Pause typing" : "Start search"}
@@ -503,6 +508,7 @@ export default function App() {
               {mood.trim() && (
                 <section className="recommendations-section">
                   <RecommendationGridV2 
+                    ref={recommendationRef}
                     query={mood} 
                     onRecommendationsGenerated={handleRecommendationsGenerated}
                   />

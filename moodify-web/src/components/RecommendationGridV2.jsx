@@ -98,7 +98,18 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
     setAnalysis(null);
   }, [query]);
 
-  // Auto-fetch removed - now only manual trigger via Go button or Enter key
+  // Auto-fetch when query changes (but only after user stops typing)
+  useEffect(() => {
+    if (!query.trim()) return;
+    
+    const timeoutId = setTimeout(() => {
+      if (query.trim() && !hasGenerated) {
+        generateRecommendations();
+      }
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [query, hasGenerated, generateRecommendations]);
   
   // Manual trigger method for parent component
   const triggerGeneration = useCallback(() => {
