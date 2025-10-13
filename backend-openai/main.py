@@ -38,6 +38,7 @@ from spotipy.oauth2 import SpotifyOAuth
 import requests
 from dotenv import load_dotenv
 import openai
+from openai import OpenAI
 
 # AI Model imports
 try:
