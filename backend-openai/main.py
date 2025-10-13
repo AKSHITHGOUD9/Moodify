@@ -95,7 +95,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 huggingface_client = InferenceClient(token=HUGGINGFACE_API_KEY) if HUGGINGFACE_API_KEY and HUGGINGFACE_AVAILABLE else None
 if GEMINI_API_KEY and GEMINI_AVAILABLE:
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-1.5-pro')
 else:
     gemini_model = None
 
@@ -460,9 +460,9 @@ async def generate_huggingface_recommendations(user_profile: Dict, query: str) -
         
         response = huggingface_client.text_generation(
             prompt,
-            max_new_tokens=100,
-            temperature=0.3,
-            model="microsoft/DialoGPT-medium"
+            max_new_tokens=150,
+            temperature=0.7,
+            model="microsoft/DialoGPT-large"
         )
         
         # Parse response to extract queries
@@ -486,28 +486,34 @@ async def generate_gemini_recommendations(user_profile: Dict, query: str) -> Lis
         if not gemini_model:
             raise Exception("Gemini model not available")
         
-        prompt = f"""
-        You are a music expert. Generate 4-5 SPECIFIC song search queries for: "{query}"
-        
-        User's Music Profile:
-        - Top Artists: {user_profile.get('top_artists', [])}
-        - Genres: {user_profile.get('genres', [])}
-        - Regional Preferences: {user_profile.get('regional_preferences', [])}
-        - Sample Songs: {user_profile.get('detailed_tracks', [])[:5]}
-        
-        Requirements:
-        1. Generate SPECIFIC song titles, not generic terms
-        2. Include artist names when possible
-        3. Make them searchable on Spotify
-        4. Consider user's music taste
-        
-        Examples of good queries:
-        - "Zara Sa Arijit Singh"
-        - "Tum Hi Ho Arijit Singh"
-        - "Shape of You Ed Sheeran"
-        
-        Return only the search queries, one per line.
-        """
+        prompt = f"""You are a music expert. Generate 4-5 SPECIFIC song search queries for: "{query}"
+
+User's Music Profile:
+- Top Artists: {user_profile.get('top_artists', [])}
+- Genres: {user_profile.get('genres', [])}
+- Regional Preferences: {user_profile.get('regional_preferences', [])}
+- Sample Songs: {user_profile.get('detailed_tracks', [])[:5]}
+
+CRITICAL REQUIREMENTS:
+1. Generate ACTUAL SONG TITLES, not generic terms like "new english songs"
+2. Use REAL song names from popular artists
+3. Include artist names for better search results
+4. Focus on songs the user would actually like based on their profile
+
+GOOD EXAMPLES:
+- "Perfect Ed Sheeran"
+- "Shape of You Ed Sheeran" 
+- "Zara Sa Arijit Singh"
+- "Tum Hi Ho Arijit Singh"
+- "Blinding Lights The Weeknd"
+
+BAD EXAMPLES (DO NOT USE):
+- "new english songs"
+- "rock music"
+- "chill songs"
+- "popular songs"
+
+Return only the search queries, one per line."""
         
         response = gemini_model.generate_content(prompt)
         queries_text = response.text.strip()
@@ -558,9 +564,13 @@ async def generate_smart_recommendations(user_profile: Dict, query: str) -> List
                 logger.warning(f"{fallback_model} fallback failed: {e}")
                 continue
         
-        # If all models fail, return original query
-        logger.error("All AI models failed, using original query")
-        return [query]
+        # If all models fail, use OpenAI as final fallback
+        logger.error("All AI models failed, using OpenAI as final fallback")
+        try:
+            return await generate_personalized_search_queries(user_profile, query)
+        except Exception as e:
+            logger.error(f"Even OpenAI fallback failed: {e}")
+            return [query]
         
     except Exception as e:
         logger.error(f"Smart routing failed: {e}")
@@ -1443,7 +1453,7 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                 limit=20,
                 market=None  # Global market - works for all regions
             )
-        
+            
             new_tracks = []
             if isinstance(results, dict) and 'tracks' in results:
                 for track in results['tracks'].get('items', []):
@@ -1467,7 +1477,7 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                             track_data['album_image'] = 'https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+Cover'
                         
                         new_tracks.append(track_data)
-        
+            
             return new_tracks[:20]
         except Exception as fallback_error:
             logger.error(f"Fallback search also failed: {fallback_error}")
@@ -1514,10 +1524,10 @@ async def get_generic_popular_tracks(sp) -> List[Dict]:
                                 track_data['album_image'] = album_images[0]['url']
                             
                             all_tracks.append(track_data)
-                    
-                    if len(all_tracks) >= 20:
-                        break
-                        
+                            
+                        if len(all_tracks) >= 20:
+                            break
+                            
                 if len(all_tracks) >= 20:
                     break
                     
@@ -1956,8 +1966,8 @@ async def get_top_tracks(request: Request, token: str = None):
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-        if not sp:
-            return {"error": "Not authenticated"}
+    if not sp:
+        return {"error": "Not authenticated"}
     
     try:
         # Get user's top tracks (short term - last 4 weeks)
@@ -2041,8 +2051,8 @@ async def get_user_playlists(request: Request, token: str = None):
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-        if not sp:
-            return {"error": "Not authenticated"}
+    if not sp:
+        return {"error": "Not authenticated"}
     
     try:
         # Get user's playlists
@@ -2077,8 +2087,8 @@ async def get_album_covers(request: Request, token: str = None):
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-        if not sp:
-            return JSONResponse({"error": "Not authenticated"}, status_code=401)
+    if not sp:
+        return JSONResponse({"error": "Not authenticated"}, status_code=401)
     
     try:
         # Get user's top tracks from different time ranges
@@ -2161,8 +2171,8 @@ async def create_custom_playlist(request: Request, playlist_data: dict, token: s
     else:
         # Fallback to session-based authentication
         sp = await _ensure_token(request)
-        if not sp:
-            raise HTTPException(status_code=401, detail="Not authenticated")
+    if not sp:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
         # Get playlist data
@@ -2268,8 +2278,8 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
         else:
             # Fallback to session-based authentication
             sp = await _ensure_token(request)
-            if not sp:
-                raise HTTPException(status_code=401, detail="Not authenticated")
+        if not sp:
+            raise HTTPException(status_code=401, detail="Not authenticated")
             user_id = request.session.get("user_id", "")
         
         if not sp:
@@ -2310,18 +2320,18 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
         if music_history:
             filtered_history = await filter_user_history_by_query(music_history, user_query)
             for track in filtered_history:
-                track_data = {
-                    'id': track['id'],
-                    'name': track['name'],
-                    'artists': track['artists'],
-                    'album': track['album'],
+                        track_data = {
+                            'id': track['id'],
+                            'name': track['name'],
+                            'artists': track['artists'],
+                            'album': track['album'],
                     'album_image': track.get('album_image'),
-                    'external_url': f"https://open.spotify.com/track/{track['id']}",
+                            'external_url': f"https://open.spotify.com/track/{track['id']}",
                     'preview_url': track.get('preview_url'),
                     'popularity': track.get('popularity', 0),
                     'duration_ms': track.get('duration_ms', 180000)
-                }
-                history_tracks.append(track_data)
+                        }
+                        history_tracks.append(track_data)
         
         # Sort by popularity and limit results
         filtered_tracks.sort(key=lambda x: x.get('popularity', 0), reverse=True)

@@ -98,18 +98,7 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
     setAnalysis(null);
   }, [query]);
 
-  // Auto-fetch when query changes (but only after user stops typing)
-  useEffect(() => {
-    if (!query.trim()) return;
-    
-    const timeoutId = setTimeout(() => {
-      if (query.trim() && !hasGenerated) {
-        generateRecommendations();
-      }
-    }, 500); // Wait 500ms after user stops typing
-
-    return () => clearTimeout(timeoutId);
-  }, [query, hasGenerated, generateRecommendations]);
+  // Auto-fetch removed - now only manual trigger via Go button or Enter key
   
   // Manual trigger method for parent component
   const triggerGeneration = useCallback(() => {
@@ -266,7 +255,7 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
         {/* History Recommendations Column */}
         <div className="recommendation-column history-column">
           <div className="column-header">
-            <h4>🎵 From Your History</h4>
+            <h4>Your Top Songs</h4>
             <span className="track-count">{historyRecs.length} songs</span>
           </div>
           <div className="track-list">
@@ -286,7 +275,7 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
         {/* New Recommendations Column */}
         <div className="recommendation-column new-column">
           <div className="column-header">
-            <h4>✨ New Discoveries</h4>
+            <h4>New Discoveries</h4>
             <span className="track-count">{newRecs.length} songs</span>
           </div>
           <div className="track-list">
