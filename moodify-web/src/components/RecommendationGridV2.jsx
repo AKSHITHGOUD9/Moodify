@@ -98,18 +98,14 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
     setAnalysis(null);
   }, [query]);
 
-  // Debounced generation - only generate after user stops typing for 1 second
-  useEffect(() => {
-    if (!query.trim()) return;
-    
-    const timeoutId = setTimeout(() => {
-      if (query.trim() && !hasGenerated) {
-        generateRecommendations();
-      }
-    }, 1000); // Wait 1 second after user stops typing
-
-    return () => clearTimeout(timeoutId);
-  }, [query]); // Only depend on query, not hasGenerated
+  // Auto-fetch removed - now only manual trigger via Go button or Enter key
+  
+  // Manual trigger method for parent component
+  const triggerGeneration = useCallback(() => {
+    if (query.trim() && !hasGenerated) {
+      generateRecommendations();
+    }
+  }, [query, hasGenerated, generateRecommendations]);
 
   // Toggle track selection state for playlist creation
   const handleTrackToggle = useCallback((trackId, source) => {
@@ -166,8 +162,9 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     getSelectedTrackIds,
-    getAllSelectedTracks
-  }), [getSelectedTrackIds, getAllSelectedTracks]);
+    getAllSelectedTracks,
+    triggerGeneration
+  }), [getSelectedTrackIds, getAllSelectedTracks, triggerGeneration]);
 
   // const handleTrackPlay = (track) => {
   //   setCurrentTrack(track);

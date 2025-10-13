@@ -37,7 +37,7 @@ export default function App() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
-  const [useNewRecommendationSystem, setUseNewRecommendationSystem] = useState(true);
+  // Always using AI system - toggle removed
   const [recommendationData, setRecommendationData] = useState(null);
   const [spotifyToken, setSpotifyToken] = useState(null);
 
@@ -298,11 +298,11 @@ export default function App() {
 
   // Memoized tracks to use for playlist creation
   const tracksToUse = useMemo(() => {
-    if (useNewRecommendationSystem && recommendationData) {
+    if (recommendationData) {
       return recommendationData.getSelectedTrackIds ? recommendationData.getSelectedTrackIds() : [];
     }
     return trackIds;
-  }, [useNewRecommendationSystem, recommendationData, trackIds]);
+  }, [recommendationData, trackIds]);
 
   /**
    * Creates a Spotify playlist from the currently loaded recommendations.
@@ -465,13 +465,13 @@ export default function App() {
                       onKeyDown={handleKeyDown}
                     />
                     <button
-                      className={`go-btn ${isGenerating ? 'loading' : 'ready'}`}
+                      className={`play-pause-btn ${isGenerating ? 'loading' : isTyping ? 'pause' : 'play'}`}
                       onClick={isGenerating ? () => setIsGenerating(false) : (() => {
                         setIsTyping(false);
                         generateRecs();
                       })}
                       disabled={!mood.trim() && !isGenerating}
-                      title={isGenerating ? "Stop generation" : "Search"}
+                      title={isGenerating ? "Stop generation" : isTyping ? "Pause typing" : "Start search"}
                     >
                       {isGenerating ? (
                         <div className="loading-animation">
@@ -479,44 +479,21 @@ export default function App() {
                           <div className="loading-dot"></div>
                           <div className="loading-dot"></div>
                         </div>
+                      ) : isTyping ? (
+                        <div className="pause-animation">
+                          <div className="pause-bar"></div>
+                          <div className="pause-bar"></div>
+                        </div>
                       ) : (
-                        <span>Go</span>
+                        <div className="play-animation">
+                          <div className="play-triangle"></div>
+                        </div>
                       )}
                     </button>
                     
                   </div>
 
-                  {/* Invisible Playlist Options - Hidden while typing */}
-                  {!isTyping && (
-                    <div className="ghost-options">
-                      <div className="toggle-area">
-                        <label className="invisible-toggle">
-                          <input
-                            type="checkbox"
-                            checked={useNewRecommendationSystem}
-                            onChange={(e) => setUseNewRecommendationSystem(e.target.checked)}
-                          />
-                          <span className="ghost-slider"></span>
-                          <span className="toggle-text">
-                            Use AI + Spotify system
-                            <span className="info-icon-wrapper">
-                              <img src="/tooltip.png" alt="Info" className="info-icon" />
-                              <div className="info-tooltip">
-                                <div className="tooltip-content">
-                                  <div className="tooltip-section">
-                                    <strong>AI + Spotify:</strong> Advanced AI analysis of your music history for personalized recommendations.
-                                  </div>
-                                  <div className="tooltip-section">
-                                    <strong>Regular Backend:</strong> Traditional algorithms based on audio features and genre matching.
-                                  </div>
-                                </div>
-                              </div>
-                            </span>
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
+                  {/* Toggle removed - now always using AI system */}
                 </div>
 
                 {recsErr && <p className="ghost-error">{recsErr}</p>}
@@ -525,127 +502,17 @@ export default function App() {
               {/* Recommendations section */}
               {mood.trim() && (
                 <section className="recommendations-section">
-                  {useNewRecommendationSystem ? (
-                    <RecommendationGridV2 
-                      query={mood} 
-                      onRecommendationsGenerated={handleRecommendationsGenerated}
-                    />
-                  ) : (
-                    // Old recommendation system
-                    (recs.tracks?.length > 0 || recs.length > 0) && (
-                      <>
-                        <h3 className="section-title">✨ Your AI-Generated Playlist</h3>
-
-                        {/* AI Analysis Display */}
-                        {recs.analysis && (
-                          <div className="ai-analysis">
-                            <div className="analysis-card">
-                              <h4>🤖 AI Analysis</h4>
-                              <p className="analysis-text">{recs.analysis.analysis_text}</p>
-                              <div className="analysis-details">
-                                {recs.analysis.detected_genres.length > 0 && (
-                                  <div className="analysis-item">
-                                    <span className="label">Genres: </span>
-                                    <span className="value">{recs.analysis.detected_genres.join(", ")}</span>
-                                  </div>
-                                )}
-                                {recs.analysis.detected_moods.length > 0 && (
-                                  <div className="analysis-item">
-                                    <span className="label">Mood:</span>
-                                    <span className="value">{recs.analysis.detected_moods.join(", ")}</span>
-                                  </div>
-                                )}
-                                <div className="analysis-item">
-                                  <span className="label">Confidence: </span>
-                                  <span className="value">{Math.round(recs.analysis.confidence * 100)}%</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Your Music Profile */}
-                            {recs.user_profile && recs.user_profile.top_genres && (
-                              <div className="analysis-card">
-                                <h4>🎵 Your Music Profile</h4>
-                                <div className="profile-details">
-                                  <div className="profile-item">
-                                    <span className="label">Top Genres:</span>
-                                    <span className="value">{recs.user_profile.top_genres.slice(0, 3).join(", ")}</span>
-                                  </div>
-                                  <div className="profile-item">
-                                    <span className="label">Tracks Analyzed:</span>
-                                    <span className="value">{recs.user_profile.total_tracks_analyzed}</span>
-                                  </div>
-                                  {recs.user_profile.avg_audio_features && (
-                                    <div className="profile-item">
-                                      <span className="label">Your Energy Level:</span>
-                                      <span className="value">{Math.round(recs.user_profile.avg_audio_features.energy * 100)}%</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="tracks-grid">
-                          {(recs.tracks || recs).map((track) => (
-                            <div key={track.id} className="track-card">
-                              <div className="track-image">
-                                {track.album_image ? (
-                                  <img src={track.album_image} alt={track.name} />
-                                ) : (
-                                  <div className="image-placeholder">
-                                    <span>🎵</span>
-                                  </div>
-                                )}
-                                <div className="track-overlay">
-                                  {track.preview_url && (
-                                    <audio controls src={track.preview_url} className="track-preview">
-                                      Your browser does not support the audio element.
-                                    </audio>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="track-info">
-                                <h4 className="track-name">{track.name}</h4>
-                                <p className="track-artist">{(track.artists || []).join(", ")}</p>
-                                {track.popularity && (
-                                  <div className="track-popularity">
-                                    <span className="popularity-label">Popularity:</span>
-                                    <div className="popularity-bar">
-                                      <div
-                                        className="popularity-fill"
-                                        style={{ width: `${track.popularity}%` }}
-                                      ></div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {track.external_url && (
-                                <a
-                                  href={track.external_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="spotify-link"
-                                >
-                                  Open in Spotify
-                                </a>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )
-                  )}
+                  <RecommendationGridV2 
+                    query={mood} 
+                    onRecommendationsGenerated={handleRecommendationsGenerated}
+                  />
 
                   {/* Playlist Creation Button */}
                   <div style={{ textAlign: "center", margin: "2rem auto" }}>
                     <button
                       className="login-button" 
                       onClick={createPlaylistFromRecs}
-                      disabled={isGenerating || (useNewRecommendationSystem ? !recommendationData?.getSelectedTrackIds?.()?.length : !trackIds.length)}
+                      disabled={isGenerating || !recommendationData?.getSelectedTrackIds?.()?.length}
                     >
                       Create Playlist on Spotify
                     </button>
