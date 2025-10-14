@@ -95,7 +95,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 huggingface_client = InferenceClient(token=HUGGINGFACE_API_KEY) if HUGGINGFACE_API_KEY and HUGGINGFACE_AVAILABLE else None
 if GEMINI_API_KEY and GEMINI_AVAILABLE:
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-pro')
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     gemini_model = None
 
@@ -359,21 +359,19 @@ USER'S MUSIC PROFILE:
 
 USER REQUEST: "{query}"
 
-TASK: Generate 4-5 SPECIFIC search queries that will find actual songs similar to what this user already listens to.
+TASK: Generate 3-4 SPECIFIC search queries that will find actual songs similar to what this user already listens to.
 
 CRITICAL RULES:
 1. Use SPECIFIC SONG NAMES from the user's recent tracks when relevant
-2. Combine user's favorite artists with the mood/era/genre they're asking for
-3. For "chill" + "old" + language: search for specific chill songs by their favorite artists
-4. For "old" requests: focus on songs from the 90s-2010s era that match their taste
-5. Use actual song titles, not generic terms like "old hindi chill songs"
-6. Prioritize songs by artists they already listen to
-7. Be specific: "Zara Sa" instead of "chill hindi songs"
+2. Keep each query under 80 characters
+3. Combine user's favorite artists with the mood/era/genre they're asking for
+4. Use actual song titles, not generic terms
+5. Prioritize songs by artists they already listen to
 
 EXAMPLES OF GOOD QUERIES:
-- "Zara Sa Arijit Singh" (specific song + artist they like)
-- "Tum Hi Ho old hindi romantic" (specific song + context)
-- "Channa Mereya old hindi" (specific song + era)
+- "Zara Sa Arijit Singh"
+- "Tum Hi Ho"
+- "Channa Mereya"
 
 Generate search queries that will find SPECIFIC SONGS this user would love:
 """
@@ -486,7 +484,7 @@ async def generate_gemini_recommendations(user_profile: Dict, query: str) -> Lis
         if not gemini_model:
             raise Exception("Gemini model not available")
         
-        prompt = f"""You are a music expert. Generate 4-5 SPECIFIC song search queries for: "{query}"
+        prompt = f"""You are a music expert. Generate 3-4 SPECIFIC song search queries for: "{query}"
 
 User's Music Profile:
 - Top Artists: {user_profile.get('top_artists', [])}
@@ -495,23 +493,16 @@ User's Music Profile:
 - Sample Songs: {user_profile.get('detailed_tracks', [])[:5]}
 
 CRITICAL REQUIREMENTS:
-1. Generate ACTUAL SONG TITLES, not generic terms like "new english songs"
+1. Generate ACTUAL SONG TITLES, not generic terms
 2. Use REAL song names from popular artists
-3. Include artist names for better search results
-4. Focus on songs the user would actually like based on their profile
+3. Keep each query under 80 characters
+4. Focus on songs the user would actually like
 
 GOOD EXAMPLES:
 - "Perfect Ed Sheeran"
-- "Shape of You Ed Sheeran" 
+- "Shape of You" 
 - "Zara Sa Arijit Singh"
-- "Tum Hi Ho Arijit Singh"
-- "Blinding Lights The Weeknd"
-
-BAD EXAMPLES (DO NOT USE):
-- "new english songs"
-- "rock music"
-- "chill songs"
-- "popular songs"
+- "Blinding Lights"
 
 Return only the search queries, one per line."""
         
@@ -1055,6 +1046,11 @@ Return only the search queries, one per line, no explanations.
 async def search_spotify_tracks(sp, query: str) -> List[Dict]:
     """Search Spotify for tracks using a single query"""
     try:
+        # Validate and truncate query to prevent API errors
+        if len(query) > 250:
+            query = query[:247] + "..."
+            logger.warning(f"Query too long, truncated to: {query}")
+        
         logger.info(f"Searching Spotify for: {query}")
         
         results = await asyncio.to_thread(
@@ -1818,6 +1814,16 @@ async def callback(request: Request, code: str = None, error: str = None):
             return RedirectResponse(url=f"{POST_LOGIN_REDIRECT}?error=no_code")
         
         # Clear any existing session to prevent conflicts
+        old_user_id = request.session.get("user_id")
+        if old_user_id:
+            logger.info(f"Clearing existing session for user: {old_user_id}")
+            # Clear old user's cache
+            if old_user_id in user_profile_cache:
+                del user_profile_cache[old_user_id]
+            album_cache_key = f"album_covers_{old_user_id}"
+            if album_cache_key in album_covers_cache:
+                del album_covers_cache[album_cache_key]
+        
         request.session.clear()
         logger.info("Cleared existing session to prevent user conflicts")
         
@@ -1863,14 +1869,30 @@ async def callback(request: Request, code: str = None, error: str = None):
 @app.post("/logout")
 @app.get("/logout")
 async def logout(request: Request):
-    """Logout user and clear all cached data"""
+    """Logout user and clear all cached data with proper session isolation"""
     logger.info(f"Logout endpoint called with method: {request.method}")
     logger.info(f"Session keys before clear: {list(request.session.keys())}")
     
     try:
+        # Get user ID before clearing session for targeted cache clearing
+        user_id = request.session.get("user_id")
+        
         # Clear the session completely
         request.session.clear()
-        logger.info("Session cleared successfully")
+        logger.info(f"Session cleared successfully for user: {user_id}")
+        
+        # Clear user-specific cached data
+        if user_id:
+            # Clear user profile cache (using same key as storage)
+            if user_id in user_profile_cache:
+                del user_profile_cache[user_id]
+                logger.info(f"Cleared user profile cache for user: {user_id}")
+            
+            # Clear album covers cache for this user
+            album_cache_key = f"album_covers_{user_id}"
+            if album_cache_key in album_covers_cache:
+                del album_covers_cache[album_cache_key]
+                logger.info(f"Cleared album covers cache for user: {user_id}")
         
         # Force session to expire immediately by setting negative max_age
         # This ensures the session cookie is deleted from the browser
@@ -1897,7 +1919,7 @@ async def logout(request: Request):
                     os.remove(cache_file)
                     logger.info(f"Cleared cache file: {cache_file}")
         
-        logger.info("User logged out successfully - all caches cleared")
+        logger.info(f"User {user_id} logged out successfully - all caches cleared")
         return response
     except Exception as e:
         logger.error(f"Error during logout: {e}")
