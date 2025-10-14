@@ -37,7 +37,11 @@ const AlbumCoverGrid = () => {
       const url = token ? `${API}/api/album-covers?token=${token}` : `${API}/api/album-covers`;
       
       const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch album covers");
+      if (!res.ok) {
+        console.warn("Failed to fetch album covers:", res.status, res.statusText);
+        setAlbumCovers([]);
+        return;
+      }
       const data = await res.json();
       
       console.log("Fetched album covers:", data.urls?.length || 0);
@@ -62,7 +66,7 @@ const AlbumCoverGrid = () => {
       setAlbumCovers(finalUrls.slice(0, neededTiles));
       console.log(`Rendering ${finalUrls.slice(0, neededTiles).length} album cover tiles`);
     } catch (e) {
-      console.error("Error fetching album covers:", e);
+      console.warn("Error fetching album covers:", e.message);
       // Fallback: create placeholder covers if API fails
       const placeholderCovers = Array.from({ length: 800 }, (_, i) => 
         `https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+${i + 1}`

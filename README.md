@@ -27,7 +27,7 @@
 ### Demo 2: AI-Powered Search & Recommendations  
 **File:** `demos/02-ai-recommendations-demo.mp4`
 **Description:** 
-- Search for "chill old telugu songs"
+- Search for "Songs that you like"
 - Watch AI generate specific song recommendations
 - See how it filters from your listening history
 

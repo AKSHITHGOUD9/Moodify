@@ -401,8 +401,8 @@ export default function App() {
   
   return (
     <div className="app-container">
-      {/* Advanced Fluid Cursor Animation */}
-      <AlbumCoverGrid />
+      {/* Advanced Fluid Cursor Animation - Only show when user is authenticated */}
+      {me && <AlbumCoverGrid />}
 
       {/* Main content */}
       <div className="content">
