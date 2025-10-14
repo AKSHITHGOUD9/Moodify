@@ -1907,24 +1907,11 @@ async def logout(request: Request):
 async def get_user(request: Request, token: str = None):
     """Get current user information"""
     try:
-        # Try token-based authentication first
-        if token:
-            sp = spotipy.Spotify(auth=token)
-            user = await asyncio.to_thread(sp.current_user)
-            return {
-                "id": user["id"],
-                "display_name": user["display_name"],
-                "email": user.get("email"),
-                "country": user.get("country"),
-                "followers": user.get("followers", {}).get("total", 0),
-                "images": user.get("images", [])
-            }
+        # ONLY token-based authentication - no session fallback
+        if not token:
+            raise HTTPException(status_code=401, detail="Token required")
         
-        # Fallback to session-based authentication
-        sp = await _ensure_token(request)
-        if not sp:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-        
+        sp = spotipy.Spotify(auth=token)
         user = await asyncio.to_thread(sp.current_user)
         return {
             "id": user["id"],
@@ -1934,6 +1921,8 @@ async def get_user(request: Request, token: str = None):
             "followers": user.get("followers", {}).get("total", 0),
             "images": user.get("images", [])
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting user info: {e}")
         raise HTTPException(status_code=401, detail="Not authenticated")
