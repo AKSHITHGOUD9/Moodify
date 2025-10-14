@@ -186,6 +186,7 @@ async def _ensure_token(request: Request):
 
 # In-memory cache for user profiles (in production, use Redis)
 user_profile_cache = {}
+album_covers_cache = {}
 
 async def cache_user_music_profile(sp, user_id: str) -> Dict:
     """Cache user's complete music profile for instant AI recommendations"""
