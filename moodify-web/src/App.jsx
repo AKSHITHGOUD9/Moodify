@@ -125,37 +125,9 @@ export default function App() {
       return fetchUserDataWithToken(spotifyToken);
     }
     
-    // Don't make session-based calls if we don't have a token
-    // This prevents the "Failed to fetch" error on the login page
-    console.log("No token available, skipping session-based authentication");
+    // No token available - this should not happen in normal flow
+    console.log("No token available for loadMe");
     return;
-    
-    setLoading(true);
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-      
-      const res = await fetch(`${API}/me`, { 
-        credentials: "include",
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setMe(data);
-      setErr("");
-      setLastUpdated(new Date().toLocaleTimeString());
-    } catch (e) {
-      if (e.name === 'AbortError') {
-        setErr('Request timeout - please try again');
-      } else {
-        setErr(String(e));
-      }
-    } finally {
-      setLoading(false);
-    }
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -811,7 +783,7 @@ export default function App() {
             <div className="profile-actions">
               <button
                 className="profile-action-btn"
-                onClick={loadMe}
+                onClick={() => spotifyToken ? fetchUserDataWithToken(spotifyToken) : null}
                 disabled={loading}
               >
                 {loading ? "Refreshing..." : "🔄 Refresh"}
