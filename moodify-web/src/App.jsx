@@ -390,8 +390,10 @@ export default function App() {
   // =========================================================================
   useEffect(() => {
     // Only call loadMe if we don't have a token (token-based loading is handled separately)
+    // But don't call it at all to prevent session-based API calls that cause errors
     if (!spotifyToken) {
-      loadMe();
+      console.log("No token available, skipping loadMe call to prevent session-based API errors");
+      return;
     }
   }, [spotifyToken]);
 
