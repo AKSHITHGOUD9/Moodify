@@ -165,7 +165,7 @@ export default function App() {
     setLoadingAnalytics(true);
     try {
       const url = spotifyToken ? `${API}/api/top-tracks?token=${spotifyToken}` : `${API}/api/top-tracks`;
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setAnalytics(data);
@@ -181,7 +181,7 @@ export default function App() {
     setLoadingPlaylists(true);
     try {
       const url = spotifyToken ? `${API}/api/my-playlists?token=${spotifyToken}` : `${API}/api/my-playlists`;
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setPlaylists(data);
@@ -233,7 +233,6 @@ export default function App() {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         signal: controller.signal,
         body: JSON.stringify({
           query: mood.trim(),
@@ -306,7 +305,6 @@ export default function App() {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(playlistData),
       });
       

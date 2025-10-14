@@ -54,7 +54,6 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ query: query.trim() }),
         signal: controller.signal
       });

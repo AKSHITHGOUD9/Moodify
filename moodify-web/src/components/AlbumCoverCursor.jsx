@@ -11,7 +11,14 @@ const AlbumCoverCursor = () => {
   useEffect(() => {
     const fetchCovers = async () => {
       try {
-        const res = await fetch(`${API}/api/album-covers`, { credentials: "include" });
+        // Only fetch if user is authenticated (has token)
+        const token = localStorage.getItem('spotify_token');
+        if (!token) {
+          console.log("No token available for AlbumCoverCursor, skipping fetch");
+          return;
+        }
+        
+        const res = await fetch(`${API}/api/album-covers?token=${token}`);
         if (!res.ok) throw new Error("Failed to fetch album covers");
         const data = await res.json();
         setAvailableUrls(data.urls);

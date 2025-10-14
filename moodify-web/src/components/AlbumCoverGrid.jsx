@@ -36,7 +36,7 @@ const AlbumCoverGrid = () => {
       const token = localStorage.getItem('spotify_token');
       const url = token ? `${API}/api/album-covers?token=${token}` : `${API}/api/album-covers`;
       
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(url);
       if (!res.ok) {
         console.warn("Failed to fetch album covers:", res.status, res.statusText);
         setAlbumCovers([]);
