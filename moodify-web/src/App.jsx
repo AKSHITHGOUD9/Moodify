@@ -125,6 +125,11 @@ export default function App() {
       return fetchUserDataWithToken(spotifyToken);
     }
     
+    // Don't make session-based calls if we don't have a token
+    // This prevents the "Failed to fetch" error on the login page
+    console.log("No token available, skipping session-based authentication");
+    return;
+    
     setLoading(true);
     try {
       const controller = new AbortController();
