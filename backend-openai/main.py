@@ -80,7 +80,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Spotify API configuration
-SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+f = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 
@@ -619,6 +619,7 @@ Generate 10 specific search queries that will find the BEST songs for this user:
 8.
 9.
 10."""
+#TODO: use pydantic model to get structured output with llm call similar to .with_structured_output() in langchain
         
         response = await asyncio.to_thread(gemini_model.generate_content, prompt)
         queries_text = response.text.strip()
@@ -999,7 +1000,7 @@ SEARCH QUERY GUIDELINES:
 - Use Spotify-friendly search terms
 - Avoid overly generic terms
 
-Generate 8-10 specific search queries:
+Generate exactly 10 specific search queries:
 """
         
         response = await asyncio.to_thread(

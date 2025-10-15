@@ -12,7 +12,7 @@ import {
   ArcElement,
   RadialLinearScale
 } from 'chart.js';
-import { Line, Bar, Pie, Radar } from 'react-chartjs-2';
+import { Line, Bar, Radar } from 'react-chartjs-2';
 
 // Register Chart.js components
 ChartJS.register(
@@ -75,22 +75,6 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
     };
   };
 
-  // Genre distribution data
-  const generateGenreDistribution = () => {
-    const genres = analytics.top_genres || ['pop', 'rock', 'electronic', 'hip-hop', 'indie'];
-    const colors = [themeColors.primary, themeColors.secondary, themeColors.accent, themeColors.warning, themeColors.danger];
-    
-    return {
-      labels: genres,
-      datasets: [{
-        data: genres.map(() => Math.floor(Math.random() * 30) + 10),
-        backgroundColor: colors,
-        borderColor: colors.map(color => color + '80'),
-        borderWidth: 2,
-        hoverOffset: 4
-      }]
-    };
-  };
 
   // Artist popularity data
   const generateArtistPopularity = () => {
@@ -148,6 +132,16 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
     },
     scales: {
       x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Date',
+          color: themeColors.text,
+          font: {
+            size: 13,
+            weight: 'bold'
+          }
+        },
         grid: {
           color: themeColors.grid,
           drawBorder: false
@@ -160,6 +154,16 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
         }
       },
       y: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Number of Plays',
+          color: themeColors.text,
+          font: {
+            size: 13,
+            weight: 'bold'
+          }
+        },
         grid: {
           color: themeColors.grid,
           drawBorder: false
@@ -174,22 +178,70 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
     }
   };
 
-  const pieOptions = {
+  const barChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom',
         labels: {
           color: themeColors.text,
           font: {
             size: 12
-          },
-          padding: 15
+          }
+        }
+      },
+      title: {
+        display: false
+      }
+    },
+    scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Artists',
+          color: themeColors.text,
+          font: {
+            size: 13,
+            weight: 'bold'
+          }
+        },
+        grid: {
+          color: themeColors.grid,
+          drawBorder: false
+        },
+        ticks: {
+          color: themeColors.text,
+          font: {
+            size: 11
+          }
+        }
+      },
+      y: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Play Count',
+          color: themeColors.text,
+          font: {
+            size: 13,
+            weight: 'bold'
+          }
+        },
+        grid: {
+          color: themeColors.grid,
+          drawBorder: false
+        },
+        ticks: {
+          color: themeColors.text,
+          font: {
+            size: 11
+          }
         }
       }
     }
   };
+
 
   const radarOptions = {
     responsive: true,
@@ -236,19 +288,11 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
         </div>
 
         <div className="charts-grid">
-          {/* Listening Trends */}
-          <div className="chart-container">
+          {/* Listening Trends - Extended */}
+          <div className="chart-container extended-chart">
             <h3>📊 Listening Trends</h3>
-            <div className="chart-wrapper">
+            <div className="chart-wrapper extended-wrapper">
               <Line data={generateListeningTrends()} options={chartOptions} />
-            </div>
-          </div>
-
-          {/* Genre Distribution */}
-          <div className="chart-container">
-            <h3>🥧 Genre Distribution</h3>
-            <div className="chart-wrapper">
-              <Pie data={generateGenreDistribution()} options={pieOptions} />
             </div>
           </div>
 
@@ -256,7 +300,7 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
           <div className="chart-container">
             <h3>📈 Artist Popularity</h3>
             <div className="chart-wrapper">
-              <Bar data={generateArtistPopularity()} options={chartOptions} />
+              <Bar data={generateArtistPopularity()} options={barChartOptions} />
             </div>
           </div>
 

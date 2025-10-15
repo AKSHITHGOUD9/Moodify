@@ -3039,8 +3039,18 @@ r Profile Dropdown with Close Button */
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 30px;
+}
+
+.extended-chart {
+  grid-column: 1 / 2;
+  grid-row: 1 / 3;
+}
+
+.extended-wrapper {
+  height: 450px;
 }
 
 .chart-container {
@@ -3083,11 +3093,21 @@ r Profile Dropdown with Close Button */
   
   .charts-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: auto;
     gap: 20px;
+  }
+  
+  .extended-chart {
+    grid-column: 1;
+    grid-row: 1;
   }
   
   .chart-wrapper {
     height: 250px;
+  }
+  
+  .extended-wrapper {
+    height: 300px;
   }
   
   .charts-modal-header h2 {
