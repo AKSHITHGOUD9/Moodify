@@ -1,7 +1,7 @@
 """Analytics API routes"""
 
 from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 from ..core.analytics import AnalyticsService
@@ -40,3 +40,15 @@ async def get_user_playlists(token: str = Depends(get_spotify_token)) -> Dict[st
     except Exception as e:
         logger.error(f"Failed to get playlists: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch playlists")
+
+@router.get("/album-covers")
+async def get_album_covers(token: str = Depends(get_spotify_token)) -> List[str]:
+    """Get album cover URLs for background"""
+    try:
+        analytics_service = get_analytics_service()
+        covers = await analytics_service.get_album_covers(token)
+        return covers
+        
+    except Exception as e:
+        logger.error(f"Failed to get album covers: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch album covers")

@@ -47,6 +47,37 @@ class AnalyticsService:
             logger.error(f"Failed to get playlists: {e}")
             raise
     
+    async def get_album_covers(self, access_token: str) -> List[str]:
+        """Get album cover URLs for background fluid effect"""
+        try:
+            # Get top tracks and recent tracks to extract album covers
+            top_tracks = self.spotify_service.get_user_top_tracks(access_token, limit=50)
+            recent_tracks = self.spotify_service.get_recently_played(access_token, limit=50)
+            
+            covers = set()
+            
+            # Extract covers from top tracks
+            for track in top_tracks:
+                album_images = track.get('album', {}).get('images', [])
+                if album_images:
+                    covers.add(album_images[0]['url'])
+            
+            # Extract covers from recent tracks
+            for track in recent_tracks:
+                album_images = track.get('album', {}).get('images', [])
+                if album_images:
+                    covers.add(album_images[0]['url'])
+            
+            # Convert to list and limit to reasonable number
+            cover_list = list(covers)[:100]
+            
+            logger.info(f"Returning {len(cover_list)} unique album cover URLs from user's history")
+            return cover_list
+            
+        except Exception as e:
+            logger.error(f"Failed to get album covers: {e}")
+            raise
+    
     def _format_tracks(self, tracks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Format tracks for frontend"""
         formatted = []
