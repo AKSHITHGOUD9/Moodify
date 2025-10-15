@@ -324,7 +324,7 @@ export default function App() {
       }
       
       const data = await res.json();
-      alert(`🎵 Playlist created successfully!\n\nName: ${data.playlist.name}\nTracks: ${data.playlist.tracks_added}\n\nCheck your Spotify library!`);
+      alert(`Playlist created successfully!\n\nName: ${data.playlist.name}\nTracks: ${data.playlist.tracks_added}\n\nCheck your Spotify library!`);
       
     } catch (e) {
       console.error("Failed to create playlist:", e);
@@ -440,7 +440,7 @@ export default function App() {
               {/* Ultra Transparent Search Section */}
               <section className="invisible-section">
                 <div className="center-content">
-                  <h2 className="main-title">🎵 What's Your Vibe?</h2>
+                  <h2 className="main-title">What's Your Vibe?</h2>
                   <div className="quote-container">
                     <p className="floating-quote">{ELEGANT_QUOTE}</p>
                   </div>
@@ -846,19 +846,19 @@ export default function App() {
                 onClick={() => spotifyToken ? fetchUserDataWithToken(spotifyToken) : null}
                 disabled={loading}
               >
-                {loading ? "Refreshing..." : "🔄 Refresh"}
+                {loading ? "Refreshing..." : "Refresh"}
               </button>
               <button
                 className="profile-action-btn secondary"
                 onClick={() => setShowRaw(v => !v)}
               >
-                {showRaw ? "👁️ Hide Raw" : "👁️ Show Raw"}
+                {showRaw ? "Hide Raw" : "Show Raw"}
               </button>
               <button
                 className="profile-action-btn logout-btn"
                 onClick={handleLogout}
               >
-                🚪 Logout
+                Logout
               </button>
             </div>
 
@@ -890,7 +890,7 @@ export default function App() {
               <div className="step">
                 <div className="step-number">1</div>
                 <div className="step-content">
-                  <h3>🎵 We Analyze Your Music</h3>
+                  <h3>MoodifyAnalyze Your Music</h3>
                   <p>When you connect Spotify, we analyze your listening history to understand your musical taste - your favorite artists, genres, and regional preferences.</p>
                 </div>
               </div>
@@ -898,7 +898,7 @@ export default function App() {
               <div className="step">
                 <div className="step-number">2</div>
                 <div className="step-content">
-                  <h3>🤖 AI Creates Your Profile</h3>
+                  <h3>AI Creates Your Profile</h3>
                   <p>Our AI builds a personalized music profile based on your Spotify data, learning what you love to listen to.</p>
                 </div>
               </div>
@@ -906,7 +906,7 @@ export default function App() {
               <div className="step">
                 <div className="step-number">3</div>
                 <div className="step-content">
-                  <h3>🔍 Smart Search & Recommendations</h3>
+                  <h3>Smart Search & Recommendations</h3>
                   <p>When you search for "chill old Telugu songs," our AI uses your profile to find specific songs you'll actually love, not just generic suggestions.</p>
                 </div>
               </div>
@@ -914,7 +914,7 @@ export default function App() {
               <div className="step">
                 <div className="step-number">4</div>
                 <div className="step-content">
-                  <h3>✨ Personalized Results</h3>
+                  <h3>Personalized Results</h3>
                   <p>Get recommendations from your history and discover new songs that match your unique taste - all powered by AI, not just algorithms.</p>
                 </div>
               </div>

@@ -355,7 +355,7 @@ const TrackItem = ({ track, index, source, onToggle, onReorder }) => {
           ) : track.images && track.images[0] ? (
             <img src={track.images[0].url} alt={track.name} />
           ) : (
-            <div className="image-placeholder">🎵</div>
+            <div className="image-placeholder">♪</div>
           )}
         </div>
         
