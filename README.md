@@ -23,32 +23,54 @@
 Watch these videos to see Moodify in action:
 
 ### 1. **Spotify Login & Setup**
-<video width="100%" controls loop autoplay muted>
-  <source src="demos/Intro.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Demo 1: Spotify Login](demos/Intro.mp4)
 **What you'll see:** Complete Spotify OAuth login process and user profile setup.
 
 ### 2. **Analytics Dashboard & How It Works**
-<video width="100%" controls loop autoplay muted>
-  <source src="demos/Charts&Dashboard.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Demo 2: Analytics Dashboard](demos/Charts&Dashboard.mp4)
 **What you'll see:** Interactive analytics dashboard, charts, and "How It Works" modal explanation.
 
 ### 3. **AI Recommendations & Playlist Creation**
-<video width="100%" controls loop autoplay muted>
-  <source src="demos/Creating playlist.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Demo 3: AI Recommendations](demos/Creating%20playlist.mp4)
 **What you'll see:** AI-powered recommendations, smart history filtering, track selection, and playlist creation.
 
 ### 4. **Spotify Integration**
-<video width="100%" controls loop autoplay muted>
-  <source src="demos/Playlist created in spotify.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Demo 4: Spotify Integration](demos/Playlist%20created%20in%20spotify.mp4)
 **What you'll see:** How quickly (5-10 seconds) your created playlist appears in Spotify.
+
+---
+
+### 📺 **Alternative: Watch All Demos**
+If the videos don't display above, you can:
+- **Download the MP4 files** from the `demos/` folder
+- **View them locally** on your device
+- **Check the demo descriptions** below for detailed explanations
+
+### 🎬 **Demo Walkthrough:**
+
+#### **Demo 1: Login Flow**
+- Click "Connect with Spotify" 
+- Complete OAuth authentication
+- System loads your music profile
+- Dashboard appears with your data
+
+#### **Demo 2: Analytics Dashboard**
+- View "How It Works" modal
+- Explore interactive charts
+- See your top tracks and artists
+- Check listening trends and mood analysis
+
+#### **Demo 3: AI Recommendations**
+- Search for "chill old Telugu songs"
+- Watch AI filter your history
+- See personalized recommendations
+- Select and reorder tracks
+- Create playlist with one click
+
+#### **Demo 4: Spotify Integration**
+- Playlist appears in Spotify instantly
+- Ready for daily listening
+- Perfect integration with your library
 
 ## 🛠️ Tech Stack
 
