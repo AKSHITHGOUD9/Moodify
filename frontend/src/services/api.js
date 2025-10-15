@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "https://moodify-ai-powered.onrender.com";
 
 class ApiService {
   async get(endpoint, params = {}) {
