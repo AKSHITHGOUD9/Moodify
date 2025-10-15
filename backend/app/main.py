@@ -48,7 +48,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "env_vars_updated": True}
 
 if __name__ == "__main__":
     import uvicorn
