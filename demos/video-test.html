@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moodify Demo Videos - Loop Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .video-container {
+            margin-bottom: 40px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        h2 {
+            color: #1db954;
+            margin-bottom: 10px;
+        }
+        .description {
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Moodify Demo Videos</h1>
+    <p>These videos showcase Moodify's features and automatically loop for continuous demonstration.</p>
+
+    <div class="video-container">
+        <h2>1. Spotify Login & Setup</h2>
+        <div class="description">Complete Spotify OAuth login process and user profile setup.</div>
+        <video controls loop autoplay muted>
+            <source src="Intro.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    <div class="video-container">
+        <h2>2. Analytics Dashboard & How It Works</h2>
+        <div class="description">Interactive analytics dashboard, charts, and "How It Works" modal explanation.</div>
+        <video controls loop autoplay muted>
+            <source src="Charts&Dashboard.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    <div class="video-container">
+        <h2>3. AI Recommendations & Playlist Creation</h2>
+        <div class="description">AI-powered recommendations, smart history filtering, track selection, and playlist creation.</div>
+        <video controls loop autoplay muted>
+            <source src="Creating playlist.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    <div class="video-container">
+        <h2>4. Spotify Integration</h2>
+        <div class="description">How quickly (5-10 seconds) your created playlist appears in Spotify.</div>
+        <video controls loop autoplay muted>
+            <source src="Playlist created in spotify.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+
+    <script>
+        // Ensure videos loop properly
+        document.addEventListener('DOMContentLoaded', function() {
+            const videos = document.querySelectorAll('video');
+            videos.forEach(video => {
+                video.addEventListener('ended', function() {
+                    this.currentTime = 0;
+                    this.play();
+                });
+            });
+        });
+    </script>
+</body>
+</html>

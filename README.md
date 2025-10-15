@@ -1,258 +1,269 @@
-# Moodify - Music Discovery
+# 🎵 Moodify - AI-Powered Music Discovery
 
 **Transform your mood into the perfect playlist with AI-powered music recommendations using Spotify and advanced language models.**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Moodify-brightgreen)](https://moodify.akshithmothkuri.com)
-[![Tech Stack](https://img.shields.io/badge/Tech%20Stack-React%20%7C%20FastAPI%20%7C%20OpenAI-blue)](https://github.com/AKSHITHGOUD9/Moodify-AI-Powered)
+[![Tech Stack](https://img.shields.io/badge/Tech%20Stack-React%20%7C%20FastAPI%20%7C%20OpenAI-blue)](https://github.com/AKSHITHGOUD9/Moodify)
 
-## 🌟 Features
+## 🌟 What Makes Moodify Special
 
-- **AI-Powered Recommendations**: Uses OpenAI GPT-4o, Gemini, and Hugging Face for intelligent music curation
-- **Smart History Filtering**: Analyzes your Spotify listening history to find relevant tracks
-- **Multi-LLM Load Balancing**: Automatically routes queries to the best AI model
-- **Real-time Playlist Creation**: Create and save playlists directly to Spotify
-- **Beautiful Analytics Dashboard**: Spotify-inspired design with album cover backgrounds
-- **Global Music Support**: Works with regional music (Tamil, Telugu, Hindi, etc.)
+- **🧠 AI-Powered Recommendations**: Uses GPT-4o, Gemini, and Hugging Face for intelligent music curation
+- **📊 Smart History Filtering**: Analyzes your Spotify listening history to find relevant tracks  
+- **⚡ Multi-LLM Load Balancing**: Automatically routes queries to the best AI model
+- **🎧 Real-time Playlist Creation**: Create and save playlists directly to Spotify
+- **📈 Beautiful Analytics Dashboard**: Spotify-inspired design with interactive charts
+- **🌍 Global Music Support**: Works with regional music (Tamil, Telugu, Hindi, etc.)
 
 ## 🚀 Live Demo
 
 **Try it now:** [https://moodify.akshithmothkuri.com](https://moodify.akshithmothkuri.com)
 
-## 📱 Demo Videos
+## 📹 Demo Videos
 
-### Demo 1: Getting Started & Login
-**File:** `demos/01-login-demo.mp4`
-**Description:** Complete walkthrough of Spotify OAuth login and initial setup
+Watch these videos to see Moodify in action:
 
-### Demo 2: AI-Powered Search & Recommendations  
-**File:** `demos/02-ai-recommendations-demo.mp4`
-**Description:** 
-- Search for "Songs that you like"
-- Watch AI generate specific song recommendations
-- See how it filters from your listening history
+### 1. **Spotify Login & Setup**
+<video width="100%" controls loop autoplay muted>
+  <source src="demos/Intro.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+**What you'll see:** Complete Spotify OAuth login process and user profile setup.
 
-### Demo 3: Analytics Dashboard
-**File:** `demos/03-analytics-dashboard-demo.mp4`
-**Description:**
-- View your top tracks and artists
-- See listening patterns with beautiful album cover backgrounds
-- Explore your music profile
+### 2. **Analytics Dashboard & How It Works**
+<video width="100%" controls loop autoplay muted>
+  <source src="demos/Charts&Dashboard.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+**What you'll see:** Interactive analytics dashboard, charts, and "How It Works" modal explanation.
 
-### Demo 4: Playlist Creation & Spotify Integration
-**File:** `demos/04-playlist-creation-demo.mp4`
-**Description:**
-- Create custom playlists
-- Save directly to Spotify
-- Play recommendations through the app
+### 3. **AI Recommendations & Playlist Creation**
+<video width="100%" controls loop autoplay muted>
+  <source src="demos/Creating playlist.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+**What you'll see:** AI-powered recommendations, smart history filtering, track selection, and playlist creation.
 
-### Demo 5: Regional Music & Advanced Features
-**File:** `demos/05-regional-music-demo.mp4`
-**Description:**
-- Search for Tamil, Hindi, Telugu music
-- Show AI's cultural understanding
-- Demonstrate multi-language support
+### 4. **Spotify Integration**
+<video width="100%" controls loop autoplay muted>
+  <source src="demos/Playlist created in spotify.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+**What you'll see:** How quickly (5-10 seconds) your created playlist appears in Spotify.
 
 ## 🛠️ Tech Stack
 
-**Frontend:** React, Vite, CSS3  
-**Backend:** FastAPI, Python 3.12  
-**AI/ML:** OpenAI GPT-4o, Google Gemini, Hugging Face  
-**APIs:** Spotify Web API  
-**Deployment:** Vercel (Frontend), Render (Backend)  
+- **Frontend**: React, Vite, Chart.js
+- **Backend**: FastAPI, Python
+- **AI Models**: OpenAI GPT-4o, Google Gemini, Hugging Face
+- **Music API**: Spotify Web API
+- **Authentication**: Spotify OAuth 2.0
 
-## 🏃‍♂️ Quick Start
+## 🚀 Quick Start - Run Locally
 
 ### Prerequisites
-- Python 3.12+
-- Node.js 18+
+- Python 3.8+
+- Node.js 16+
 - Spotify Developer Account
 - OpenAI API Key (optional)
-- Google Gemini API Key (optional)
+- Google AI API Key (optional)
 - Hugging Face API Key (optional)
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/AKSHITHGOUD9/Moodify-AI-Powered.git
-cd Moodify-AI-Powered
+git clone https://github.com/AKSHITHGOUD9/Moodify.git
+cd Moodify
 ```
 
 ### 2. Backend Setup
+
 ```bash
+# Navigate to backend
 cd backend-openai
 
 # Create virtual environment
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy environment template
+# Create environment file
 cp env.example .env
 ```
 
-### 3. Frontend Setup
+### 3. Configure Environment Variables
+
+Edit `backend-openai/.env`:
+
+```env
+# Spotify Configuration
+SPOTIFY_CLIENT_ID=your_spotify_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:3000/callback
+POST_LOGIN_REDIRECT=http://127.0.0.1:5173/
+
+# AI Configuration (Optional - system works with just Spotify)
+OPENAI_API_KEY=your_openai_api_key
+GOOGLE_AI_API_KEY=your_google_ai_api_key
+HUGGING_FACE_KEYS=your_huggingface_api_key
+
+# Server Configuration
+PORT=3000
+```
+
+### 4. Frontend Setup
+
 ```bash
+# Navigate to frontend
 cd ../moodify-web
 
 # Install dependencies
 npm install
 
-# Copy environment template
-cp env.txt .env
+# Create environment file
+echo "VITE_BACKEND_URL=http://127.0.0.1:3000" > .env
 ```
 
-### 4. Get API Credentials
+### 5. Spotify App Configuration
 
-#### Spotify API (Required)
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Create a new app
-3. Add redirect URI: `http://localhost:8000/callback`
-4. Copy Client ID and Client Secret
-
-#### OpenAI API (Recommended)
-1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create a new API key
-3. Copy the key
-
-#### Google Gemini API (Optional)
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create a new API key
-3. Copy the key
-
-#### Hugging Face API (Optional)
-1. Go to [Hugging Face Settings](https://huggingface.co/settings/tokens)
-2. Create a new access token
-3. Copy the token
-
-### 5. Configure Environment Variables
-
-#### Backend (.env)
-```bash
-# Spotify Configuration (Required)
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-SPOTIFY_REDIRECT_URI=http://localhost:8000/callback
-
-# AI API Keys (At least one required)
-OPENAI_API_KEY=your_openai_api_key
-GEMINI_API_KEYS=your_gemini_api_key
-HUGGING_FACE_KEYS=your_huggingface_token
-
-# CORS Configuration
-FRONTEND_URLS=http://localhost:5173,http://127.0.0.1:5173
-```
-
-#### Frontend (.env)
-```bash
-VITE_BACKEND_URL=http://localhost:8000
-```
+3. Add redirect URI: `http://127.0.0.1:3000/callback`
+4. Copy Client ID and Client Secret to your `.env` file
 
 ### 6. Run the Application
 
-#### Start Backend
+**Terminal 1 - Backend:**
 ```bash
 cd backend-openai
+source venv/bin/activate
 python main.py
 ```
-Backend will run on: http://localhost:8000
 
-#### Start Frontend
+**Terminal 2 - Frontend:**
 ```bash
 cd moodify-web
 npm run dev
 ```
-Frontend will run on: http://localhost:5173
 
 ### 7. Access the Application
-Open your browser and go to: http://localhost:5173
+
+- **Frontend**: http://127.0.0.1:5173
+- **Backend**: http://127.0.0.1:3000
 
 ## 🎯 How It Works
 
-1. **User Authentication**: Secure Spotify OAuth login
-2. **Music Profile Analysis**: AI analyzes your listening history and preferences
-3. **Smart Query Processing**: Multiple AI models generate specific search queries
-4. **Intelligent Filtering**: Advanced algorithms filter recommendations based on mood, genre, and cultural context
-5. **Playlist Creation**: Generate and save playlists directly to Spotify
+1. **Connect Spotify**: Authenticate with your Spotify account
+2. **AI Analysis**: Our AI analyzes your listening history and creates a personalized profile
+3. **Smart Search**: Type natural queries like "chill old Telugu songs"
+4. **AI Recommendations**: Get specific song recommendations based on your taste
+5. **Create Playlists**: Select tracks and create playlists directly in Spotify
 
-## 🧠 AI Features
+## 📊 Features Explained
 
-- **Multi-Model Architecture**: Routes queries to OpenAI, Gemini, or Hugging Face based on complexity
-- **Cultural Understanding**: Specialized handling for regional music (Tamil, Telugu, Hindi, etc.)
-- **Context-Aware Filtering**: Removes irrelevant content like background music or sound effects
-- **Personalized Recommendations**: Uses your music DNA for better suggestions
+### AI-Powered Recommendations
+- Uses multiple LLM models (GPT-4o, Gemini, Hugging Face)
+- Generates specific song titles, not generic terms
+- Filters recommendations based on your listening history
+
+### Smart History Filtering
+- Analyzes your Spotify data to understand your taste
+- Shows relevant tracks from your history
+- Supports regional music and multiple languages
+
+### Analytics Dashboard
+- Beautiful Spotify-inspired design
+- Interactive charts and visualizations
+- Album cover backgrounds for visual appeal
+
+### Playlist Creation
+- Drag-and-drop track reordering
+- Custom track selection
+- Direct Spotify integration
+
+## 🔧 API Keys Setup (Optional)
+
+### OpenAI (Recommended)
+1. Get API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Add to `.env` as `OPENAI_API_KEY`
+
+### Google AI (Recommended)
+1. Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Add to `.env` as `GOOGLE_AI_API_KEY`
+
+### Hugging Face (Optional)
+1. Get API key from [Hugging Face](https://huggingface.co/settings/tokens)
+2. Add to `.env` as `HUGGING_FACE_KEYS`
+
+**Note:** The system works with just Spotify API, but AI keys provide better recommendations.
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Port Already in Use:**
+```bash
+# Kill process on port 3000
+lsof -ti:3000 | xargs kill -9
+
+# Kill process on port 5173
+lsof -ti:5173 | xargs kill -9
+```
+
+**Spotify Redirect URI Error:**
+- Ensure `http://127.0.0.1:3000/callback` is added to your Spotify app settings
+- Check that your `.env` file has the correct redirect URI
+
+**Module Not Found Errors:**
+```bash
+# Reinstall dependencies
+cd backend-openai
+pip install -r requirements.txt
+
+cd ../moodify-web
+npm install
+```
 
 ## 📁 Project Structure
 
 ```
-Moodify-AI-Powered/
+Moodify/
 ├── backend-openai/          # FastAPI backend
-│   ├── main.py             # Main application
+│   ├── main.py             # Main application file
 │   ├── requirements.txt    # Python dependencies
 │   └── .env               # Environment variables
-├── moodify-web/            # React frontend
+├── moodify-web/           # React frontend
 │   ├── src/
-│   │   ├── components/     # React components
-│   │   └── App.jsx        # Main app component
-│   ├── public/            # Static assets
-│   └── .env              # Environment variables
-├── demos/                 # Demo videos (add your videos here)
-│   ├── 01-login-demo.mp4
-│   ├── 02-ai-recommendations-demo.mp4
-│   ├── 03-analytics-dashboard-demo.mp4
-│   ├── 04-playlist-creation-demo.mp4
-│   └── 05-regional-music-demo.mp4
-└── README.md
+│   │   ├── App.jsx        # Main React component
+│   │   └── components/    # React components
+│   └── package.json       # Node dependencies
+├── demos/                 # Demo videos
+│   ├── Intro.mp4
+│   ├── Charts&Dashboard.mp4
+│   ├── Creating playlist.mp4
+│   └── Playlist created in spotify.mp4
+└── README.md              # This file
 ```
-
-## 🎬 Creating Demo Videos
-
-### Video Specifications
-- **Format**: MP4 (H.264 codec)
-- **Resolution**: 1920x1080 (Full HD)
-- **Frame Rate**: 30fps
-- **Duration**: 2-3 minutes per demo
-- **File Size**: Keep under 50MB per video
-
-### Recording Tips
-1. **Clear Audio**: Use good microphone, avoid background noise
-2. **Smooth Scrolling**: Use slow, deliberate mouse movements
-3. **Highlight Interactions**: Pause briefly after clicking buttons
-4. **Show Results**: Wait for API responses to load completely
-5. **Professional Narration**: Explain what's happening clearly
-
-### Tools for Recording
-- **Screen Recording**: OBS Studio, Loom, or QuickTime
-- **Editing**: DaVinci Resolve (free) or Adobe Premiere Pro
-- **Compression**: HandBrake (free) for optimizing file sizes
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgments
 
-- Spotify Web API for music data
+- Spotify for the amazing Web API
 - OpenAI, Google, and Hugging Face for AI capabilities
-- React and FastAPI communities for excellent frameworks
-
-## 📞 Contact
-
-**Akshith Goud**  
-- LinkedIn: [Your LinkedIn Profile]
-- GitHub: [@AKSHITHGOUD9](https://github.com/AKSHITHGOUD9)
-- Live Demo: [moodify.akshithmothkuri.com](https://moodify.akshithmothkuri.com)
+- React and FastAPI communities
 
 ---
 
-⭐ **Star this repository if you found it helpful!**
+**Made with ❤️ for music lovers everywhere**
 
-*Built with ❤️ and AI*
+*Experience the future of music discovery with AI-powered recommendations!*
