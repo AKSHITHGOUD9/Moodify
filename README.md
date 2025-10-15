@@ -39,15 +39,6 @@ Watch these videos to see Moodify in action:
 **What you'll see:** How quickly (5-10 seconds) your created playlist appears in Spotify.
 
 ---
-
-### 📺 **Alternative: Watch Full Quality Videos**
-For full-quality videos, download the original MP4 files from the `demos/` folder:
-- [Intro.mp4](demos/Intro.mp4) - Spotify login process
-- [Charts&Dashboard.mp4](demos/Charts&Dashboard.mp4) - Analytics dashboard
-- [Creating playlist.mp4](demos/Creating%20playlist.mp4) - AI recommendations
-- [Playlist created in spotify.mp4](demos/Playlist%20created%20in%20spotify.mp4) - Spotify integration
-
-
 ## 🛠️ Tech Stack
 
 - **Frontend**: React, Vite, Chart.js
