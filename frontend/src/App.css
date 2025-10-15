@@ -5,55 +5,6 @@
   overflow: hidden;
 }
 
-/* Fluid background with album covers */
-.fluid-background {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  overflow: hidden;
-}
-
-.fluid-cover {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.1;
-  animation: float 20s infinite linear;
-  filter: blur(2px);
-}
-
-.fluid-cover:nth-child(1) { animation-delay: 0s; animation-duration: 25s; }
-.fluid-cover:nth-child(2) { animation-delay: 5s; animation-duration: 30s; }
-.fluid-cover:nth-child(3) { animation-delay: 10s; animation-duration: 20s; }
-.fluid-cover:nth-child(4) { animation-delay: 15s; animation-duration: 35s; }
-.fluid-cover:nth-child(5) { animation-delay: 20s; animation-duration: 28s; }
-
-@keyframes float {
-  0% {
-    transform: translateY(100vh) rotate(0deg);
-  }
-  100% {
-    transform: translateY(-100px) rotate(360deg);
-  }
-}
-
-/* Add fluid background to login page */
-.login-container {
-  position: relative;
-}
-
-.login-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-  z-index: -1;
-}
 
 /* Error message styles */
 .error-message {
