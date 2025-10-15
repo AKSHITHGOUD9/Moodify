@@ -95,7 +95,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 huggingface_client = InferenceClient(token=HUGGINGFACE_API_KEY) if HUGGINGFACE_API_KEY and HUGGINGFACE_AVAILABLE else None
 if GEMINI_API_KEY and GEMINI_AVAILABLE:
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-pro')
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     gemini_model = None
 
@@ -472,12 +472,14 @@ async def generate_huggingface_recommendations(user_profile: Dict, query: str) -
         Return only the search queries, one per line.
         """
         
-        response = huggingface_client.text_generation(
+        response = await asyncio.to_thread(
+            huggingface_client.text_generation,
             prompt,
-            max_new_tokens=100,
+            max_new_tokens=80,
             temperature=0.7,
-            model="microsoft/DialoGPT-large",
-            return_full_text=False
+            model="microsoft/DialoGPT-medium",
+            return_full_text=False,
+            stop=["\n", ".", "!"]
         )
         
         # Parse response to extract queries
@@ -523,7 +525,7 @@ GOOD EXAMPLES:
 
 Return only the search queries, one per line."""
         
-        response = gemini_model.generate_content(prompt)
+        response = await asyncio.to_thread(gemini_model.generate_content, prompt)
         queries_text = response.text.strip()
         queries = [q.strip() for q in queries_text.split('\n') if q.strip()]
         
