@@ -38,19 +38,26 @@ async def login():
 async def callback(request: Request):
     """Handle Spotify OAuth callback"""
     try:
+        logger.info(f"Callback received: {request.url}")
         spotify_service = get_spotify_service()
         code = request.query_params.get("code")
+        logger.info(f"Authorization code: {code[:10] if code else 'None'}...")
+        
         if not code:
+            logger.error("No authorization code received")
             raise HTTPException(status_code=400, detail="Authorization code missing")
         
+        logger.info("Exchanging code for token...")
         token_info = spotify_service.oauth.get_access_token(code)
         access_token = token_info['access_token']
+        logger.info(f"Token received: {access_token[:10]}...")
         
         redirect_url = f"{settings.POST_LOGIN_REDIRECT}?token={access_token}"
+        logger.info(f"Redirecting to: {redirect_url}")
         return RedirectResponse(url=redirect_url)
         
     except Exception as e:
-        logger.error(f"OAuth callback failed: {e}")
+        logger.error(f"OAuth callback failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Authentication failed")
 
 @router.get("/me")
