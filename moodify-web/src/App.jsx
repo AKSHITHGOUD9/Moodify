@@ -805,7 +805,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                </div>
               </div>
             ) : (
               <div className="modern-error-state">
