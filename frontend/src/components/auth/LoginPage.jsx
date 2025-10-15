@@ -1,10 +1,12 @@
 import { useAuth } from "../../hooks/useAuth";
+import FluidBackground from "../common/FluidBackground";
 
 export default function LoginPage() {
   const { login, error } = useAuth();
 
   return (
     <div className="login-container">
+      <FluidBackground />
       <div className="login-content">
         <div className="login-header">
           <h1>Moodify</h1>

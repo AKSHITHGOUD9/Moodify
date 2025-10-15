@@ -27,6 +27,7 @@ class Settings:
         "http://localhost:3000",
         "http://localhost:5173",
         "https://moodify-ai-powered.vercel.app",
+        "https://moodify-topaz.vercel.app",
         "https://moodify.akshithmothkuri.com"
     ]
 
