@@ -95,7 +95,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 huggingface_client = InferenceClient(token=HUGGINGFACE_API_KEY) if HUGGINGFACE_API_KEY and HUGGINGFACE_AVAILABLE else None
 if GEMINI_API_KEY and GEMINI_AVAILABLE:
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-pro')
 else:
     gemini_model = None
 
@@ -401,8 +401,23 @@ Generate search queries that will find SPECIFIC SONGS this user would love:
         if query not in search_queries:
             search_queries.append(query)
         
-        logger.info(f"Generated specific song queries: {search_queries}")
-        return search_queries
+        # If AI returned generic queries, improve them
+        improved_queries = []
+        for query in search_queries:
+            if len(query.split()) <= 2 and query.lower() in ['top english', 'new english', 'english songs', 'popular songs']:
+                # Replace generic queries with specific popular songs
+                improved_queries.extend([
+                    "Shape of You Ed Sheeran",
+                    "Blinding Lights The Weeknd", 
+                    "Levitating Dua Lipa",
+                    "Good 4 U Olivia Rodrigo"
+                ])
+            else:
+                improved_queries.append(query)
+        
+        final_queries = improved_queries[:5] if improved_queries else search_queries
+        logger.info(f"Generated specific song queries: {final_queries}")
+        return final_queries
         
     except Exception as e:
         logger.error(f"Error generating personalized queries: {e}")
@@ -459,9 +474,10 @@ async def generate_huggingface_recommendations(user_profile: Dict, query: str) -
         
         response = huggingface_client.text_generation(
             prompt,
-            max_new_tokens=150,
+            max_new_tokens=100,
             temperature=0.7,
-            model="microsoft/DialoGPT-large"
+            model="microsoft/DialoGPT-large",
+            return_full_text=False
         )
         
         # Parse response to extract queries
@@ -1244,14 +1260,14 @@ async def filter_user_history_by_query(user_tracks: List[dict], query: str) -> L
             if any(query_lower in artist for artist in track_artists):
                 score += 12
                 
-            # VERY low threshold for regional queries to show ALL regional songs
-            min_score = 0 if any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']) else 2
+            # VERY low threshold for all queries to show more relevant songs
+            min_score = 1 if any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']) else 1
             if score >= min_score:
                 relevant_tracks.append((track, score))
         
-        # Sort by relevance score and return more tracks for regional queries
+        # Sort by relevance score and return more tracks for all queries
         relevant_tracks.sort(key=lambda x: x[1], reverse=True)
-        max_tracks = 15 if any(lang in query_lower for lang in ['tamil', 'telugu', 'hindi', 'kannada', 'malayalam']) else 10
+        max_tracks = 20  # Always return more tracks
         filtered_tracks = [track for track, score in relevant_tracks[:max_tracks]]
         
         logger.info(f"Filtered to {len(filtered_tracks)} relevant tracks from user history")
