@@ -38,7 +38,7 @@ export default function App() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
-  const [activeTab, setActiveTab] = useState("analytics");
+  const [activeTab, setActiveTab] = useState("charts");
   // Always using AI system - toggle removed
   const [recommendationData, setRecommendationData] = useState(null);
   const [spotifyToken, setSpotifyToken] = useState(null);
@@ -529,6 +529,14 @@ export default function App() {
                 <p className="dashboard-subtitle">Your personalized music insights</p>
               </div>
               <div className="header-actions">
+                <button className="modern-action-btn" onClick={() => setActiveTab("charts")}>
+                  <span className="btn-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path d="M3 13h2v8H3v-8zm4-6h2v14H7V7zm4-4h2v18h-2V3zm4 8h2v10h-2V11zm4-6h2v16h-2V5z"/>
+                    </svg>
+                  </span>
+                  Charts
+                </button>
                 <button className="modern-close-btn" onClick={() => setShowDashboard(false)}>
                   <span>✕</span>
                 </button>
@@ -745,92 +753,34 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Tab System */}
-                  <div className="analytics-section tab-section">
-                    <div className="tab-header">
-                      <button 
-                        className={`tab-button ${activeTab === "analytics" ? "active" : ""}`}
-                        onClick={() => setActiveTab("analytics")}
-                      >
-                        Analytics
-                      </button>
-                      <button 
-                        className={`tab-button ${activeTab === "charts" ? "active" : ""}`}
-                        onClick={() => setActiveTab("charts")}
-                      >
-                        Charts
-                      </button>
-                    </div>
-                    
-                    <div className="tab-content">
-                      {activeTab === "analytics" ? (
-                        <div className="analytics-tab">
-                          <h3>Your Playlists</h3>
-                          {playlists && !playlists.error ? (
-                            <>
-                              <div className="playlists-showcase">
-                                {playlists.playlists?.slice(0, 6).map((playlist) => (
-                                  <div key={playlist.id} className="playlist-showcase-item">
-                                    <div className="playlist-info-card">
-                                      <h4 className="playlist-name">{playlist.name}</h4>
-                                      <p className="playlist-meta">
-                                        {playlist.tracks_count} tracks • {playlist.owner}
-                                      </p>
-                                      <div className="playlist-actions">
-                                        <a
-                                          href={playlist.url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="playlist-open-btn"
-                                        >
-                                          Open in Spotify
-                                        </a>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              {playlists.total > 6 && (
-                                <div className="playlists-footer">
-                                  <p>+{playlists.total - 6} more playlists in your library</p>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="no-playlists">
-                              <p>No playlists found</p>
-                            </div>
-                          )}
+                  {/* Charts Section - Show when Charts button is clicked */}
+                  {activeTab === "charts" && (
+                    <div className="analytics-section">
+                      <h3>Music Analytics Charts</h3>
+                      <div className="charts-grid">
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">📊</div>
+                          <h4>Listening Trends</h4>
+                          <p>Daily listening patterns</p>
                         </div>
-                      ) : (
-                        <div className="charts-tab">
-                          <h3>Music Analytics Charts</h3>
-                          <div className="charts-grid">
-                            <div className="chart-placeholder">
-                              <div className="chart-icon">📊</div>
-                              <h4>Listening Trends</h4>
-                              <p>Daily listening patterns</p>
-                            </div>
-                            <div className="chart-placeholder">
-                              <div className="chart-icon">🥧</div>
-                              <h4>Genre Distribution</h4>
-                              <p>Your music taste breakdown</p>
-                            </div>
-                            <div className="chart-placeholder">
-                              <div className="chart-icon">📈</div>
-                              <h4>Artist Popularity</h4>
-                              <p>Top artists by play count</p>
-                            </div>
-                            <div className="chart-placeholder">
-                              <div className="chart-icon">🎭</div>
-                              <h4>Mood Analysis</h4>
-                              <p>Audio features visualization</p>
-                            </div>
-                          </div>
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">🥧</div>
+                          <h4>Genre Distribution</h4>
+                          <p>Your music taste breakdown</p>
                         </div>
-                      )}
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">📈</div>
+                          <h4>Artist Popularity</h4>
+                          <p>Top artists by play count</p>
+                        </div>
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">🎭</div>
+                          <h4>Mood Analysis</h4>
+                          <p>Audio features visualization</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             ) : (
