@@ -1,0 +1,106 @@
+/**
+ * FluidBackground Component Styles (AlbumCoverGrid)
+ * 
+ * Creates an interactive background grid of album covers with proximity-based effects.
+ * Features:
+ * - Full viewport coverage with fixed positioning
+ * - Dark overlay for contrast
+ * - Responsive grid layout
+ * - Smooth hover animations
+ * - Performance-optimized transforms
+ */
+
+.album-grid-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    perspective: 1000px;
+}
+
+/* Dark background overlay - fully dark like fluid cursor */
+.album-grid-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    z-index: 1;
+}
+
+.album-grid-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-auto-rows: 100px;
+    gap: 20px;
+    padding: 20px;
+    box-sizing: border-box;
+    z-index: 2;
+}
+
+.album-tile {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: none;
+    will-change: transform, opacity, filter, box-shadow;
+    transition: all 0.1s ease-out;
+}
+
+.album-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    user-select: none;
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .album-grid-inner {
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+        grid-auto-rows: 80px;
+        gap: 15px;
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .album-grid-inner {
+        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+        grid-auto-rows: 60px;
+        gap: 10px;
+        padding: 10px;
+    }
+}
+
+/* Performance optimizations */
+.album-tile * {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .album-tile {
+        transition: none !important;
+        animation: none !important;
+    }
+}
