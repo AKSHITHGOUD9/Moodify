@@ -290,7 +290,7 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
         <div className="charts-grid">
           {/* Listening Trends - Extended */}
           <div className="chart-container extended-chart">
-            <h3>📊 Listening Trends</h3>
+            <h3>Listening Trends</h3>
             <div className="chart-wrapper extended-wrapper">
               <Line data={generateListeningTrends()} options={chartOptions} />
             </div>
@@ -298,7 +298,7 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
 
           {/* Artist Popularity */}
           <div className="chart-container">
-            <h3>📈 Artist Popularity</h3>
+            <h3>Artist Popularity</h3>
             <div className="chart-wrapper">
               <Bar data={generateArtistPopularity()} options={barChartOptions} />
             </div>
@@ -306,7 +306,7 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
 
           {/* Mood Analysis */}
           <div className="chart-container">
-            <h3>🎭 Mood Analysis</h3>
+            <h3>Mood Analysis</h3>
             <div className="chart-wrapper">
               <Radar data={generateMoodAnalysis()} options={radarOptions} />
             </div>
