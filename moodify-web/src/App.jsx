@@ -38,7 +38,7 @@ export default function App() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
-  const [activeTab, setActiveTab] = useState("analytics");
+  const [activeTab, setActiveTab] = useState("charts");
   // Always using AI system - toggle removed
   const [recommendationData, setRecommendationData] = useState(null);
   const [spotifyToken, setSpotifyToken] = useState(null);
@@ -529,20 +529,14 @@ export default function App() {
                 <p className="dashboard-subtitle">Your personalized music insights</p>
               </div>
               <div className="header-actions">
-                <div className="tab-header">
-                  <button 
-                    className={`tab-button ${activeTab === "analytics" ? "active" : ""}`}
-                    onClick={() => setActiveTab("analytics")}
-                  >
-                    Analytics
-                  </button>
-                  <button 
-                    className={`tab-button ${activeTab === "charts" ? "active" : ""}`}
-                    onClick={() => setActiveTab("charts")}
-                  >
-                    Charts
-                  </button>
-                </div>
+                <button className="modern-action-btn" onClick={() => setActiveTab("charts")}>
+                  <span className="btn-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path d="M3 13h2v8H3v-8zm4-6h2v14H7V7zm4-4h2v18h-2V3zm4 8h2v10h-2V11zm4-6h2v16h-2V5z"/>
+                    </svg>
+                  </span>
+                  Charts
+                </button>
                 <button className="modern-close-btn" onClick={() => setShowDashboard(false)}>
                   <span>✕</span>
                 </button>
@@ -561,10 +555,7 @@ export default function App() {
               </div>
             ) : analytics && !analytics.error ? (
               <div className="modern-analytics-layout">
-                {/* Tab Content */}
-                {activeTab === "analytics" ? (
-                  <>
-                    {/* Stats Overview Cards */}
+                {/* Stats Overview Cards */}
                 <div className="stats-overview">
                   <div 
                     className={`stat-card hover-card ${analytics.top_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
@@ -762,49 +753,35 @@ export default function App() {
                     </div>
                   </div>
 
-                  </>
-                ) : (
-                  /* Charts Tab - All charts in one section */
-                  <div className="charts-layout">
-                    <h3>Music Analytics Charts</h3>
-                    
-                    {/* Listening Trends Chart */}
-                    <div className="chart-section">
-                      <h4>📊 Listening Trends</h4>
-                      <div className="chart-container">
-                        <p>Daily listening patterns over the last 30 days</p>
-                        {/* Real chart will go here */}
+                  {/* Charts Section - Show when Charts button is clicked */}
+                  {activeTab === "charts" && (
+                    <div className="analytics-section">
+                      <h3>Music Analytics Charts</h3>
+                      <div className="charts-grid">
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">📊</div>
+                          <h4>Listening Trends</h4>
+                          <p>Daily listening patterns</p>
+                        </div>
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">🥧</div>
+                          <h4>Genre Distribution</h4>
+                          <p>Your music taste breakdown</p>
+                        </div>
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">📈</div>
+                          <h4>Artist Popularity</h4>
+                          <p>Top artists by play count</p>
+                        </div>
+                        <div className="chart-placeholder">
+                          <div className="chart-icon">🎭</div>
+                          <h4>Mood Analysis</h4>
+                          <p>Audio features visualization</p>
+                        </div>
                       </div>
                     </div>
-                    
-                    {/* Genre Distribution Chart */}
-                    <div className="chart-section">
-                      <h4>🥧 Genre Distribution</h4>
-                      <div className="chart-container">
-                        <p>Your music taste breakdown by genre</p>
-                        {/* Real chart will go here */}
-                      </div>
-                    </div>
-                    
-                    {/* Artist Popularity Chart */}
-                    <div className="chart-section">
-                      <h4>📈 Artist Popularity</h4>
-                      <div className="chart-container">
-                        <p>Top artists by play count and popularity</p>
-                        {/* Real chart will go here */}
-                      </div>
-                    </div>
-                    
-                    {/* Mood Analysis Chart */}
-                    <div className="chart-section">
-                      <h4>🎭 Mood Analysis</h4>
-                      <div className="chart-container">
-                        <p>Audio features visualization (energy, valence, danceability)</p>
-                        {/* Real chart will go here */}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ) : (
               <div className="modern-error-state">
