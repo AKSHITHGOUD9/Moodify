@@ -8,7 +8,7 @@ const API = import.meta.env.VITE_BACKEND_URL;
 
 // Elegant single quote
 const ELEGANT_QUOTE = "Your emotions, our algorithms, pure magic";
-// Dashboard enhancements deployed
+// Dashboard enhancements deployed - v2
 
 
 // Main App Component
