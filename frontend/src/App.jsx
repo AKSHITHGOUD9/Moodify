@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
 import "./App.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import LoginPage from "./components/auth/LoginPage";
 import Dashboard from "./components/dashboard/Dashboard";
 import { useAuth } from "./hooks/useAuth";
 
-function App() {
+function AppContent() {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -18,10 +17,16 @@ function App() {
   }
 
   return (
+    <div className="app">
+      {user ? <Dashboard /> : <LoginPage />}
+    </div>
+  );
+}
+
+function App() {
+  return (
     <AuthProvider>
-      <div className="app">
-        {user ? <Dashboard /> : <LoginPage />}
-      </div>
+      <AppContent />
     </AuthProvider>
   );
 }
