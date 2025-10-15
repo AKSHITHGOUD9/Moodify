@@ -333,34 +333,38 @@ async def generate_personalized_search_queries(user_profile: Dict, query: str) -
             logger.warning("OpenAI client not available, using fallback")
             return [query]
         
-        # Extract detailed user information
-        top_artists = user_profile.get('top_artists', [])[:10]
-        sample_tracks = user_profile.get('sample_track_names', [])[:20]
-        genres = user_profile.get('top_genres', [])[:10]
+        # Extract comprehensive user information for better AI context
+        top_artists = user_profile.get('top_artists', [])[:20]  # Increased from 10
+        sample_tracks = user_profile.get('sample_track_names', [])[:30]  # Increased from 20
+        genres = user_profile.get('top_genres', [])[:15]  # Increased from 10
         regional_prefs = user_profile.get('regional_preferences', [])
-        detailed_tracks = user_profile.get('detailed_tracks', [])[:20]
+        detailed_tracks = user_profile.get('detailed_tracks', [])[:30]  # Increased from 20
+        listening_eras = user_profile.get('listening_eras', [])
+        total_tracks = user_profile.get('total_tracks_analyzed', 0)
         
-        # Build track context string
+        # Build comprehensive track context string
         track_context = ""
         if detailed_tracks:
-            track_context = "RECENT TRACKS:\n"
-            for track in detailed_tracks[:15]:  # Show top 15 tracks
-                track_context += f"- {track['name']} by {', '.join(track['artists'])} ({track['year']})\n"
+            track_context = "USER'S COMPREHENSIVE MUSIC HISTORY:\n"
+            for track in detailed_tracks[:25]:  # Show top 25 tracks for better context
+                track_context += f"- {track['name']} by {', '.join(track['artists'])} ({track['year']}) - Popularity: {track.get('popularity', 'N/A')}\n"
         
         # Create a comprehensive prompt focused on specific song searches
         prompt = f"""
 You are an expert music curator analyzing a user's music profile to find SPECIFIC SONGS that match their request.
 
-USER'S MUSIC PROFILE:
+USER'S COMPREHENSIVE MUSIC PROFILE:
 - Top Artists: {', '.join(top_artists)}
 - Favorite Genres: {', '.join(genres)}
 - Regional Preferences: {', '.join(regional_prefs)}
+- Listening Eras: {', '.join(listening_eras)}
+- Total Tracks Analyzed: {total_tracks}
 
 {track_context}
 
 USER REQUEST: "{query}"
 
-TASK: Generate 3-4 SPECIFIC search queries that will find actual songs similar to what this user already listens to.
+TASK: Generate 8-10 SPECIFIC search queries that will find actual songs similar to what this user already listens to.
 
 CRITICAL RULES:
 1. Use SPECIFIC SONG NAMES from the user's recent tracks when relevant
@@ -368,6 +372,9 @@ CRITICAL RULES:
 3. Combine user's favorite artists with the mood/era/genre they're asking for
 4. Use actual song titles, not generic terms
 5. Prioritize songs by artists they already listen to
+6. Consider the user's listening eras and regional preferences
+7. Mix popular hits with deeper cuts from their favorite artists
+8. Include both mainstream and niche tracks based on their taste
 
 EXAMPLES OF GOOD QUERIES:
 - "Zara Sa Arijit Singh"
@@ -379,10 +386,10 @@ Generate search queries that will find SPECIFIC SONGS this user would love:
         
         response = await asyncio.to_thread(
             openai_client.chat.completions.create,
-            model="gpt-4o",  # Using GPT-4o for better results
+            model="gpt-4o",  # Using GPT-4o for best results
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=400,
-            temperature=0.2
+            max_tokens=600,  # Increased for more detailed responses
+            temperature=0.1  # Lower for more consistent, focused results
         )
         
         search_queries_text = response.choices[0].message.content.strip()
@@ -462,8 +469,34 @@ async def generate_huggingface_recommendations(user_profile: Dict, query: str) -
         if not huggingface_client:
             raise Exception("Hugging Face client not available")
         
-        # Use a simpler approach to avoid StopIteration issues
-        prompt = f"Generate song search queries for: {query}"
+        # Enhanced user context for better recommendations
+        user_artists = user_profile.get('top_artists', [])[:10]
+        user_genres = user_profile.get('top_genres', [])[:8]
+        user_regional = user_profile.get('regional_preferences', [])
+        user_tracks = user_profile.get('detailed_tracks', [])[:10]
+        
+        # Build track context
+        track_context = ""
+        if user_tracks:
+            track_context = "USER'S TRACKS:\n"
+            for track in user_tracks[:8]:
+                track_context += f"- {track['name']} by {', '.join(track['artists'])}\n"
+        
+        prompt = f"""Generate EXACTLY 5 SPECIFIC song search queries for: "{query}"
+
+USER'S MUSIC PROFILE:
+- Top Artists: {', '.join(user_artists)}
+- Genres: {', '.join(user_genres)}
+- Regional: {', '.join(user_regional)}
+
+{track_context}
+
+Generate 5 specific song search queries:
+1.
+2.
+3.
+4.
+5."""
         
         try:
             # Handle StopIteration specifically
@@ -471,25 +504,57 @@ async def generate_huggingface_recommendations(user_profile: Dict, query: str) -
                 response = await asyncio.to_thread(
                     huggingface_client.text_generation,
                     prompt,
-                    max_new_tokens=50,
-                    temperature=0.7,
+                    max_new_tokens=200,  # Increased for better responses
+                    temperature=0.5,     # Lower for more focused results
                     model="microsoft/DialoGPT-medium",
                     return_full_text=False
                 )
                 
-                # Simple parsing - just return the original query with variations
-                queries = [query, f"{query} songs", f"{query} music"]
+                # Parse the response to extract queries
+                response_text = response.strip()
+                queries = []
+                for line in response_text.split('\n'):
+                    line = line.strip()
+                    if line and (line.startswith(('1.', '2.', '3.', '4.', '5.')) or 
+                               (not line.startswith(('USER', 'Top', 'Genres', 'Regional')) and len(line) > 3)):
+                        # Clean up the query
+                        query_clean = re.sub(r'^[\d\.\-\s]+', '', line).strip()
+                        if query_clean and len(query_clean) > 3:
+                            queries.append(query_clean)
+                
+                # If parsing failed, use enhanced fallback
+                if len(queries) < 3:
+                    queries = [
+                        f"{query} {user_artists[0]}" if user_artists else query,
+                        f"{query} songs",
+                        f"{query} music",
+                        f"{query} hits",
+                        f"{query} popular"
+                    ]
+                
                 logger.info(f"Generated {len(queries)} queries using Hugging Face")
-                return queries[:3]
+                return queries[:5]
                 
             except StopIteration:
-                logger.warning("Hugging Face StopIteration error, using fallback")
-                return [query, f"{query} songs", f"{query} music"]
+                logger.warning("Hugging Face StopIteration error, using enhanced fallback")
+                return [
+                    f"{query} {user_artists[0]}" if user_artists else query,
+                    f"{query} songs",
+                    f"{query} music",
+                    f"{query} hits",
+                    f"{query} popular"
+                ]
                 
         except Exception as hf_error:
-            logger.warning(f"Hugging Face API failed: {hf_error}, using fallback")
-            # Fallback to simple query variations
-            return [query, f"{query} songs", f"{query} music"]
+            logger.warning(f"Hugging Face API failed: {hf_error}, using enhanced fallback")
+            # Enhanced fallback with user context
+            fallback_queries = [query, f"{query} songs", f"{query} music"]
+            if user_artists:
+                fallback_queries.extend([
+                    f"{query} {user_artists[0]}",
+                    f"{query} {user_artists[1]}" if len(user_artists) > 1 else f"{query} popular"
+                ])
+            return fallback_queries[:5]
         
     except Exception as e:
         logger.error(f"Hugging Face error: {e}")
@@ -502,27 +567,58 @@ async def generate_gemini_recommendations(user_profile: Dict, query: str) -> Lis
         if not gemini_model:
             raise Exception("Gemini model not available")
         
-        prompt = f"""You are a music expert. Generate 3-4 SPECIFIC song search queries for: "{query}"
+        # Enhanced user context for better recommendations
+        user_artists = user_profile.get('top_artists', [])[:15]
+        user_genres = user_profile.get('top_genres', [])[:10]
+        user_regional = user_profile.get('regional_preferences', [])
+        user_tracks = user_profile.get('detailed_tracks', [])[:20]
+        user_eras = user_profile.get('listening_eras', [])
+        
+        # Build comprehensive context
+        track_context = ""
+        if user_tracks:
+            track_context = "USER'S RECENT TRACKS:\n"
+            for track in user_tracks[:15]:
+                track_context += f"- {track['name']} by {', '.join(track['artists'])} ({track['year']})\n"
+        
+        prompt = f"""You are an expert music curator with deep knowledge of global music. Generate EXACTLY 10 SPECIFIC song search queries for: "{query}"
 
-User's Music Profile:
-- Top Artists: {user_profile.get('top_artists', [])}
-- Genres: {user_profile.get('genres', [])}
-- Regional Preferences: {user_profile.get('regional_preferences', [])}
-- Sample Songs: {user_profile.get('detailed_tracks', [])[:5]}
+USER'S COMPREHENSIVE MUSIC PROFILE:
+- Top Artists: {', '.join(user_artists)}
+- Favorite Genres: {', '.join(user_genres)}
+- Regional Preferences: {', '.join(user_regional)}
+- Listening Eras: {', '.join(user_eras)}
+- Total Tracks Analyzed: {user_profile.get('total_tracks_analyzed', 0)}
+
+{track_context}
 
 CRITICAL REQUIREMENTS:
-1. Generate ACTUAL SONG TITLES, not generic terms
-2. Use REAL song names from popular artists
-3. Keep each query under 80 characters
-4. Focus on songs the user would actually like
+1. Generate EXACTLY 10 search queries (not 3-4)
+2. Use SPECIFIC SONG TITLES and ARTIST NAMES
+3. Include songs from user's favorite artists when relevant
+4. Mix popular hits with deeper cuts
+5. Consider user's regional preferences and genres
+6. Keep each query under 80 characters
+7. Focus on songs that match the query's mood/era/genre
 
-GOOD EXAMPLES:
+EXAMPLES FOR REFERENCE:
 - "Perfect Ed Sheeran"
-- "Shape of You" 
+- "Shape of You"
 - "Zara Sa Arijit Singh"
-- "Blinding Lights"
+- "Blinding Lights The Weeknd"
+- "Samajavaragamana Sid Sriram"
 
-Return only the search queries, one per line."""
+Generate 10 specific search queries that will find the BEST songs for this user:
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.
+9.
+10."""
         
         response = await asyncio.to_thread(gemini_model.generate_content, prompt)
         queries_text = response.text.strip()
@@ -2327,7 +2423,7 @@ async def get_recommendations_v2(request: Request, data: dict, token: str = None
         
         # Step 3: Search Spotify with AI-generated queries
         all_tracks = []
-        for search_query in search_queries[:5]:  # Limit to 5 queries
+        for search_query in search_queries[:10]:  # Increased to 10 queries for better coverage
             tracks = await search_spotify_tracks(sp, search_query)
             all_tracks.extend(tracks)
         
