@@ -198,11 +198,16 @@ export default function App() {
 
 
   const toggleDashboard = useCallback(() => {
-    if (!showDashboard && !analytics) {
-      loadAnalytics();
+    if (!showDashboard) {
+      if (!analytics) {
+        loadAnalytics();
+      }
+      if (!playlists) {
+        loadPlaylists();
+      }
     }
     setShowDashboard(!showDashboard);
-  }, [showDashboard, analytics, loadAnalytics]);
+  }, [showDashboard, analytics, playlists, loadAnalytics, loadPlaylists]);
 
   /**
    * Generates track recommendations based on user mood.
@@ -559,106 +564,131 @@ export default function App() {
                 {/* Stats Overview Cards */}
                 <div className="stats-overview">
                   <div 
-                    className={`stat-card hover-card ${analytics.top_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
+                    className={`stat-card click-card ${analytics.top_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
                     style={analytics.top_tracks?.[0]?.album_image ? { 
                       backgroundImage: `url(${analytics.top_tracks[0].album_image})` 
                     } : {}}
+                    onClick={() => setShowTooltip(showTooltip === 'tracks' ? null : 'tracks')}
                   >
                     <div className="stat-content">
                       <div className="stat-number">{analytics.total_tracks || 0}</div>
                       <div className="stat-label">Top Tracks</div>
                     </div>
-                    <div className="hover-tooltip">
-                      <div className="tooltip-header">Your Top Tracks</div>
-                      <div className="tooltip-list">
-                        {analytics.top_tracks?.slice(0, 5).map((track, index) => (
-                          <div key={track.id} className="tooltip-item">
-                            <img src={track.album_image} alt={track.name} className="tooltip-image" />
-                            <div className="tooltip-info">
-                              <div className="tooltip-title">{track.name}</div>
-                              <div className="tooltip-subtitle">{track.artists?.join(", ")}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                   <div 
-                    className={`stat-card hover-card ${analytics.top_artists?.[0]?.image ? 'album-bg' : ''}`}
+                    className={`stat-card click-card ${analytics.top_artists?.[0]?.image ? 'album-bg' : ''}`}
                     style={analytics.top_artists?.[0]?.image ? { 
                       backgroundImage: `url(${analytics.top_artists[0].image})` 
                     } : {}}
+                    onClick={() => setShowTooltip(showTooltip === 'artists' ? null : 'artists')}
                   >
                     <div className="stat-content">
                       <div className="stat-number">{analytics.total_artists || 0}</div>
                       <div className="stat-label">Artists</div>
                     </div>
-                    <div className="hover-tooltip">
-                      <div className="tooltip-header">Your Favorite Artists</div>
-                      <div className="tooltip-list">
-                        {analytics.top_artists?.slice(0, 5).map((artist, index) => (
-                          <div key={artist.id} className="tooltip-item">
-                            <img src={artist.image} alt={artist.name} className="tooltip-image" />
-                            <div className="tooltip-info">
-                              <div className="tooltip-title">{artist.name}</div>
-                              <div className="tooltip-subtitle">{artist.genres?.slice(0, 2).join(", ")}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                   <div 
-                    className={`stat-card hover-card ${analytics.recent_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
+                    className={`stat-card click-card ${analytics.recent_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
                     style={analytics.recent_tracks?.[0]?.album_image ? { 
                       backgroundImage: `url(${analytics.recent_tracks[0].album_image})` 
                     } : {}}
+                    onClick={() => setShowTooltip(showTooltip === 'recent' ? null : 'recent')}
                   >
                     <div className="stat-content">
                       <div className="stat-number">{analytics.recent_tracks?.length || 0}</div>
                       <div className="stat-label">Recent Plays</div>
                     </div>
-                    <div className="hover-tooltip">
-                      <div className="tooltip-header">Recent Activity</div>
-                      <div className="tooltip-list">
-                        {analytics.recent_tracks?.slice(0, 5).map((track, index) => (
-                          <div key={`${track.id}-${index}`} className="tooltip-item">
-                            <img src={track.album_image} alt={track.name} className="tooltip-image" />
-                            <div className="tooltip-info">
-                              <div className="tooltip-title">{track.name}</div>
-                              <div className="tooltip-subtitle">{track.artists?.join(", ")}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                   <div 
-                    className={`stat-card hover-card ${playlists?.playlists?.[0]?.image ? 'album-bg' : ''}`}
+                    className={`stat-card click-card ${playlists?.playlists?.[0]?.image ? 'album-bg' : ''}`}
                     style={playlists?.playlists?.[0]?.image ? { 
                       backgroundImage: `url(${playlists.playlists[0].image})` 
                     } : {}}
+                    onClick={() => setShowTooltip(showTooltip === 'playlists' ? null : 'playlists')}
                   >
                     <div className="stat-content">
                       <div className="stat-number">{playlists?.total || 0}</div>
                       <div className="stat-label">Playlists</div>
                     </div>
-                    <div className="hover-tooltip">
-                      <div className="tooltip-header">Your Playlists</div>
-                      <div className="tooltip-list">
-                        {playlists?.playlists?.slice(0, 5).map((playlist) => (
-                          <div key={playlist.id} className="tooltip-item">
-                            <div className="tooltip-image playlist-icon">📁</div>
-                            <div className="tooltip-info">
-                              <div className="tooltip-title">{playlist.name}</div>
-                              <div className="tooltip-subtitle">{playlist.tracks_count} tracks</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 </div>
+
+                {/* Click-to-Show Lists Modal */}
+                {showTooltip && (
+                  <div className="click-list-modal">
+                    <div className="click-list-content">
+                      <button className="close-list-btn" onClick={() => setShowTooltip(null)}>✕</button>
+                      
+                      {showTooltip === 'tracks' && (
+                        <div>
+                          <h3>Your Top Tracks</h3>
+                          <div className="click-list">
+                            {analytics.top_tracks?.slice(0, 10).map((track, index) => (
+                              <div key={track.id} className="click-list-item">
+                                <img src={track.album_image} alt={track.name} className="click-list-image" />
+                                <div className="click-list-info">
+                                  <div className="click-list-title">{track.name}</div>
+                                  <div className="click-list-subtitle">{track.artists?.join(", ")}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {showTooltip === 'artists' && (
+                        <div>
+                          <h3>Your Favorite Artists</h3>
+                          <div className="click-list">
+                            {analytics.top_artists?.slice(0, 10).map((artist, index) => (
+                              <div key={artist.id} className="click-list-item">
+                                <img src={artist.image} alt={artist.name} className="click-list-image" />
+                                <div className="click-list-info">
+                                  <div className="click-list-title">{artist.name}</div>
+                                  <div className="click-list-subtitle">{artist.genres?.slice(0, 2).join(", ")}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {showTooltip === 'recent' && (
+                        <div>
+                          <h3>Recent Activity</h3>
+                          <div className="click-list">
+                            {analytics.recent_tracks?.slice(0, 10).map((track, index) => (
+                              <div key={`${track.id}-${index}`} className="click-list-item">
+                                <img src={track.album_image} alt={track.name} className="click-list-image" />
+                                <div className="click-list-info">
+                                  <div className="click-list-title">{track.name}</div>
+                                  <div className="click-list-subtitle">{track.artists?.join(", ")}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {showTooltip === 'playlists' && (
+                        <div>
+                          <h3>Your Playlists</h3>
+                          <div className="click-list">
+                            {playlists?.playlists?.slice(0, 10).map((playlist) => (
+                              <div key={playlist.id} className="click-list-item">
+                                <div className="click-list-image playlist-icon">📁</div>
+                                <div className="click-list-info">
+                                  <div className="click-list-title">{playlist.name}</div>
+                                  <div className="click-list-subtitle">{playlist.tracks_count} tracks</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Main Content Grid */}
                 <div className="analytics-main-grid">
