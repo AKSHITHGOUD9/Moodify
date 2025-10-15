@@ -39,6 +39,7 @@ export default function App() {
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
   const [activeTab, setActiveTab] = useState("charts");
+  const [showTooltip, setShowTooltip] = useState(null);
   // Always using AI system - toggle removed
   const [recommendationData, setRecommendationData] = useState(null);
   const [spotifyToken, setSpotifyToken] = useState(null);
