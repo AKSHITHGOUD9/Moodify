@@ -23,28 +23,29 @@
 Watch these videos to see Moodify in action:
 
 ### 1. **Spotify Login & Setup**
-![Demo 1: Spotify Login](demos/Intro.mp4)
+![Demo 1: Spotify Login](demos/GIFs/Intro.gif)
 **What you'll see:** Complete Spotify OAuth login process and user profile setup.
 
 ### 2. **Analytics Dashboard & How It Works**
-![Demo 2: Analytics Dashboard](demos/Charts&Dashboard.mp4)
+![Demo 2: Analytics Dashboard](demos/GIFs/Charts&Dashboard.gif)
 **What you'll see:** Interactive analytics dashboard, charts, and "How It Works" modal explanation.
 
 ### 3. **AI Recommendations & Playlist Creation**
-![Demo 3: AI Recommendations](demos/Creating%20playlist.mp4)
+![Demo 3: AI Recommendations](demos/GIFs/Creating%20playlist.gif)
 **What you'll see:** AI-powered recommendations, smart history filtering, track selection, and playlist creation.
 
 ### 4. **Spotify Integration**
-![Demo 4: Spotify Integration](demos/Playlist%20created%20in%20spotify.mp4)
+![Demo 4: Spotify Integration](demos/GIFs/Playlist%20created%20in%20spotify.gif)
 **What you'll see:** How quickly (5-10 seconds) your created playlist appears in Spotify.
 
 ---
 
-### 📺 **Alternative: Watch All Demos**
-If the videos don't display above, you can:
-- **Download the MP4 files** from the `demos/` folder
-- **View them locally** on your device
-- **Check the demo descriptions** below for detailed explanations
+### 📺 **Alternative: Watch Full Quality Videos**
+For full-quality videos, download the original MP4 files from the `demos/` folder:
+- [Intro.mp4](demos/Intro.mp4) - Spotify login process
+- [Charts&Dashboard.mp4](demos/Charts&Dashboard.mp4) - Analytics dashboard
+- [Creating playlist.mp4](demos/Creating%20playlist.mp4) - AI recommendations
+- [Playlist created in spotify.mp4](demos/Playlist%20created%20in%20spotify.mp4) - Spotify integration
 
 ### 🎬 **Demo Walkthrough:**
 
