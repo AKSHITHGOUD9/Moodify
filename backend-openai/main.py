@@ -80,7 +80,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Spotify API configuration
-f = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 
