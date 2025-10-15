@@ -37,6 +37,7 @@ export default function App() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const [createPlaylist, setCreatePlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
+  const [activeTab, setActiveTab] = useState("analytics");
   // Always using AI system - toggle removed
   const [recommendationData, setRecommendationData] = useState(null);
   const [spotifyToken, setSpotifyToken] = useState(null);
@@ -556,7 +557,7 @@ export default function App() {
                 {/* Stats Overview Cards */}
                 <div className="stats-overview">
                   <div 
-                    className={`stat-card ${analytics.top_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
+                    className={`stat-card hover-card ${analytics.top_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
                     style={analytics.top_tracks?.[0]?.album_image ? { 
                       backgroundImage: `url(${analytics.top_tracks[0].album_image})` 
                     } : {}}
@@ -565,9 +566,23 @@ export default function App() {
                       <div className="stat-number">{analytics.total_tracks || 0}</div>
                       <div className="stat-label">Top Tracks</div>
                     </div>
+                    <div className="hover-tooltip">
+                      <div className="tooltip-header">Your Top Tracks</div>
+                      <div className="tooltip-list">
+                        {analytics.top_tracks?.slice(0, 5).map((track, index) => (
+                          <div key={track.id} className="tooltip-item">
+                            <img src={track.album_image} alt={track.name} className="tooltip-image" />
+                            <div className="tooltip-info">
+                              <div className="tooltip-title">{track.name}</div>
+                              <div className="tooltip-subtitle">{track.artists?.join(", ")}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div 
-                    className={`stat-card ${analytics.top_artists?.[0]?.image ? 'album-bg' : ''}`}
+                    className={`stat-card hover-card ${analytics.top_artists?.[0]?.image ? 'album-bg' : ''}`}
                     style={analytics.top_artists?.[0]?.image ? { 
                       backgroundImage: `url(${analytics.top_artists[0].image})` 
                     } : {}}
@@ -576,9 +591,23 @@ export default function App() {
                       <div className="stat-number">{analytics.total_artists || 0}</div>
                       <div className="stat-label">Artists</div>
                     </div>
+                    <div className="hover-tooltip">
+                      <div className="tooltip-header">Your Favorite Artists</div>
+                      <div className="tooltip-list">
+                        {analytics.top_artists?.slice(0, 5).map((artist, index) => (
+                          <div key={artist.id} className="tooltip-item">
+                            <img src={artist.image} alt={artist.name} className="tooltip-image" />
+                            <div className="tooltip-info">
+                              <div className="tooltip-title">{artist.name}</div>
+                              <div className="tooltip-subtitle">{artist.genres?.slice(0, 2).join(", ")}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div 
-                    className={`stat-card ${analytics.recent_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
+                    className={`stat-card hover-card ${analytics.recent_tracks?.[0]?.album_image ? 'album-bg' : ''}`}
                     style={analytics.recent_tracks?.[0]?.album_image ? { 
                       backgroundImage: `url(${analytics.recent_tracks[0].album_image})` 
                     } : {}}
@@ -587,9 +616,23 @@ export default function App() {
                       <div className="stat-number">{analytics.recent_tracks?.length || 0}</div>
                       <div className="stat-label">Recent Plays</div>
                     </div>
+                    <div className="hover-tooltip">
+                      <div className="tooltip-header">Recent Activity</div>
+                      <div className="tooltip-list">
+                        {analytics.recent_tracks?.slice(0, 5).map((track, index) => (
+                          <div key={`${track.id}-${index}`} className="tooltip-item">
+                            <img src={track.album_image} alt={track.name} className="tooltip-image" />
+                            <div className="tooltip-info">
+                              <div className="tooltip-title">{track.name}</div>
+                              <div className="tooltip-subtitle">{track.artists?.join(", ")}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div 
-                    className={`stat-card ${playlists?.playlists?.[0]?.image ? 'album-bg' : ''}`}
+                    className={`stat-card hover-card ${playlists?.playlists?.[0]?.image ? 'album-bg' : ''}`}
                     style={playlists?.playlists?.[0]?.image ? { 
                       backgroundImage: `url(${playlists.playlists[0].image})` 
                     } : {}}
@@ -597,6 +640,20 @@ export default function App() {
                     <div className="stat-content">
                       <div className="stat-number">{playlists?.total || 0}</div>
                       <div className="stat-label">Playlists</div>
+                    </div>
+                    <div className="hover-tooltip">
+                      <div className="tooltip-header">Your Playlists</div>
+                      <div className="tooltip-list">
+                        {playlists?.playlists?.slice(0, 5).map((playlist) => (
+                          <div key={playlist.id} className="tooltip-item">
+                            <div className="tooltip-image playlist-icon">📁</div>
+                            <div className="tooltip-info">
+                              <div className="tooltip-title">{playlist.name}</div>
+                              <div className="tooltip-subtitle">{playlist.tracks_count} tracks</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -613,7 +670,7 @@ export default function App() {
                       {analytics.top_tracks?.slice(0, 5).map((track, index) => (
                         <div 
                           key={track.id} 
-                          className={`track-showcase-item ${track.album_image ? 'album-bg' : ''}`}
+                          className={`track-showcase-item no-hover ${track.album_image ? 'album-bg' : ''}`}
                           style={track.album_image ? { 
                             backgroundImage: `url(${track.album_image})` 
                           } : {}}
@@ -648,7 +705,7 @@ export default function App() {
                       {analytics.top_artists?.slice(0, 6).map((artist, index) => (
                         <div 
                           key={artist.id} 
-                          className={`artist-showcase-item ${artist.image ? 'album-bg' : ''}`}
+                          className={`artist-showcase-item no-hover ${artist.image ? 'album-bg' : ''}`}
                           style={artist.image ? { 
                             backgroundImage: `url(${artist.image})` 
                           } : {}}
@@ -695,42 +752,92 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Playlists Section */}
-                  {playlists && !playlists.error && (
-                    <div className="analytics-section playlists-section">
-                      <div className="section-header">
-                        <h3>Your Playlists</h3>
-                        <span className="section-badge">{playlists.total} Total</span>
-                      </div>
-                      <div className="playlists-showcase">
-                        {playlists.playlists?.slice(0, 6).map((playlist) => (
-                          <div key={playlist.id} className="playlist-showcase-item">
-                            <div className="playlist-info-card">
-                              <h4 className="playlist-name">{playlist.name}</h4>
-                              <p className="playlist-meta">
-                                {playlist.tracks_count} tracks • {playlist.owner}
-                              </p>
-                              <div className="playlist-actions">
-                                <a
-                                  href={playlist.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="playlist-open-btn"
-                                >
-                                  Open in Spotify
-                                </a>
+                  {/* Tab System */}
+                  <div className="analytics-section tab-section">
+                    <div className="tab-header">
+                      <button 
+                        className={`tab-button ${activeTab === "analytics" ? "active" : ""}`}
+                        onClick={() => setActiveTab("analytics")}
+                      >
+                        Analytics
+                      </button>
+                      <button 
+                        className={`tab-button ${activeTab === "charts" ? "active" : ""}`}
+                        onClick={() => setActiveTab("charts")}
+                      >
+                        Charts
+                      </button>
+                    </div>
+                    
+                    <div className="tab-content">
+                      {activeTab === "analytics" ? (
+                        <div className="analytics-tab">
+                          <h3>Your Playlists</h3>
+                          {playlists && !playlists.error ? (
+                            <>
+                              <div className="playlists-showcase">
+                                {playlists.playlists?.slice(0, 6).map((playlist) => (
+                                  <div key={playlist.id} className="playlist-showcase-item">
+                                    <div className="playlist-info-card">
+                                      <h4 className="playlist-name">{playlist.name}</h4>
+                                      <p className="playlist-meta">
+                                        {playlist.tracks_count} tracks • {playlist.owner}
+                                      </p>
+                                      <div className="playlist-actions">
+                                        <a
+                                          href={playlist.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="playlist-open-btn"
+                                        >
+                                          Open in Spotify
+                                        </a>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
+                              {playlists.total > 6 && (
+                                <div className="playlists-footer">
+                                  <p>+{playlists.total - 6} more playlists in your library</p>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="no-playlists">
+                              <p>No playlists found</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="charts-tab">
+                          <h3>Music Analytics Charts</h3>
+                          <div className="charts-grid">
+                            <div className="chart-placeholder">
+                              <div className="chart-icon">📊</div>
+                              <h4>Listening Trends</h4>
+                              <p>Daily listening patterns</p>
+                            </div>
+                            <div className="chart-placeholder">
+                              <div className="chart-icon">🥧</div>
+                              <h4>Genre Distribution</h4>
+                              <p>Your music taste breakdown</p>
+                            </div>
+                            <div className="chart-placeholder">
+                              <div className="chart-icon">📈</div>
+                              <h4>Artist Popularity</h4>
+                              <p>Top artists by play count</p>
+                            </div>
+                            <div className="chart-placeholder">
+                              <div className="chart-icon">🎭</div>
+                              <h4>Mood Analysis</h4>
+                              <p>Audio features visualization</p>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                      {playlists.total > 6 && (
-                        <div className="playlists-footer">
-                          <p>+{playlists.total - 6} more playlists in your library</p>
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             ) : (
