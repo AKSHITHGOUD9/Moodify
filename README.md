@@ -1,4 +1,4 @@
-# 🎵 Moodify - AI-Powered Music Discovery
+# 🎵 Moodify - Music Discovery
 
 **Transform your mood into the perfect playlist with AI-powered music recommendations using Spotify and advanced language models.**
 
