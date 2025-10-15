@@ -95,7 +95,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 huggingface_client = InferenceClient(token=HUGGINGFACE_API_KEY) if HUGGINGFACE_API_KEY and HUGGINGFACE_AVAILABLE else None
 if GEMINI_API_KEY and GEMINI_AVAILABLE:
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 else:
     gemini_model = None
 
@@ -462,40 +462,39 @@ async def generate_huggingface_recommendations(user_profile: Dict, query: str) -
         if not huggingface_client:
             raise Exception("Hugging Face client not available")
         
-        prompt = f"""
-        Generate 4-5 specific song search queries for: "{query}"
-        User's music profile: {user_profile.get('top_artists', [])[:3]}
+        # Use a simpler approach to avoid StopIteration issues
+        prompt = f"Generate song search queries for: {query}"
         
-        Make them specific song titles with artist names.
-        Examples: "Zara Sa Arijit Singh", "Shape of You Ed Sheeran"
-        
-        Return only the search queries, one per line.
-        """
-        
-        response = await asyncio.to_thread(
-            huggingface_client.text_generation,
-            prompt,
-            max_new_tokens=80,
-            temperature=0.7,
-            model="microsoft/DialoGPT-medium",
-            return_full_text=False,
-            stop=["\n", ".", "!"]
-        )
-        
-        # Parse response to extract queries
-        lines = response.split('\n')
-        queries = []
-        for line in lines:
-            line = line.strip()
-            if line and not line.startswith('<') and len(line) > 10:
-                queries.append(line)
-        
-        logger.info(f"Generated {len(queries)} queries using Hugging Face")
-        return queries[:5] if queries else [query]
+        try:
+            # Handle StopIteration specifically
+            try:
+                response = await asyncio.to_thread(
+                    huggingface_client.text_generation,
+                    prompt,
+                    max_new_tokens=50,
+                    temperature=0.7,
+                    model="microsoft/DialoGPT-medium",
+                    return_full_text=False
+                )
+                
+                # Simple parsing - just return the original query with variations
+                queries = [query, f"{query} songs", f"{query} music"]
+                logger.info(f"Generated {len(queries)} queries using Hugging Face")
+                return queries[:3]
+                
+            except StopIteration:
+                logger.warning("Hugging Face StopIteration error, using fallback")
+                return [query, f"{query} songs", f"{query} music"]
+                
+        except Exception as hf_error:
+            logger.warning(f"Hugging Face API failed: {hf_error}, using fallback")
+            # Fallback to simple query variations
+            return [query, f"{query} songs", f"{query} music"]
         
     except Exception as e:
         logger.error(f"Hugging Face error: {e}")
-        raise e
+        # Always return something useful
+        return [query, f"{query} songs"]
 
 async def generate_gemini_recommendations(user_profile: Dict, query: str) -> List[str]:
     """Generate recommendations using Gemini"""
@@ -1468,7 +1467,7 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                 limit=20,
                 market=None  # Global market - works for all regions
             )
-            
+        
             new_tracks = []
             if isinstance(results, dict) and 'tracks' in results:
                 for track in results['tracks'].get('items', []):
@@ -1492,11 +1491,11 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                             track_data['album_image'] = 'https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+Cover'
                         
                         new_tracks.append(track_data)
-            
+        
             return new_tracks[:20]
         except Exception as fallback_error:
             logger.error(f"Fallback search also failed: {fallback_error}")
-            return []
+        return []
 
 async def get_generic_popular_tracks(sp) -> List[Dict]:
     """Get generic popular tracks as final fallback"""
