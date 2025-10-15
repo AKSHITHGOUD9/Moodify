@@ -9,7 +9,7 @@ class Settings:
     # Spotify Configuration
     SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-    SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+    SPOTIFY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI")
     POST_LOGIN_REDIRECT = os.getenv("POST_LOGIN_REDIRECT")
     
     # AI Configuration
