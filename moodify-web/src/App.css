@@ -2782,3 +2782,55 @@ r Profile Dropdown with Close Button */
     font-size: 2.5rem;
   }
 }
+
+/* Charts Layout - Full Width */
+.charts-layout {
+  width: 100%;
+  padding: 0;
+}
+
+.charts-layout h3 {
+  color: white;
+  font-size: 2rem;
+  margin-bottom: 30px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.chart-section {
+  width: 100%;
+  margin-bottom: 40px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 30px;
+}
+
+.chart-section h4 {
+  color: white;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-container {
+  width: 100%;
+  min-height: 300px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+}
+
+.chart-container p {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.1rem;
+  text-align: center;
+  margin: 0;
+}
