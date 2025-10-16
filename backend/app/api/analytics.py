@@ -52,3 +52,32 @@ async def get_album_covers(token: str = Depends(get_spotify_token)) -> List[str]
     except Exception as e:
         logger.error(f"Failed to get album covers: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch album covers")
+
+@router.get("/my-playlists")
+async def get_my_playlists(token: str = Depends(get_spotify_token)) -> Dict[str, Any]:
+    """Get user's playlists (alias for /playlists)"""
+    try:
+        analytics_service = get_analytics_service()
+        playlists = await analytics_service.get_user_playlists(token)
+        return playlists
+        
+    except Exception as e:
+        logger.error(f"Failed to get playlists: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch playlists")
+
+@router.get("/top-tracks")
+async def get_top_tracks(token: str = Depends(get_spotify_token)) -> Dict[str, Any]:
+    """Get user's top tracks"""
+    try:
+        from ..core.spotify import SpotifyService
+        spotify_service = SpotifyService()
+        top_tracks = spotify_service.get_user_top_tracks(token, limit=20)
+        
+        return {
+            "tracks": top_tracks,
+            "total": len(top_tracks)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get top tracks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch top tracks")
