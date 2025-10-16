@@ -5,7 +5,7 @@ import AlbumCoverGrid from "./components/AlbumCoverGrid";
 import RecommendationGridV2 from "./components/RecommendationGridV2";
 import ChartsModal from "./components/ChartsModal";
 
-const API = import.meta.env.VITE_BACKEND_URL;
+const API = import.meta.env.VITE_BACKEND_URL || "https://moodify-ai-powered.onrender.com";
 
 // Elegant single quote
 const ELEGANT_QUOTE = "Your emotions, our algorithms, pure magic";
