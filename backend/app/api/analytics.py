@@ -42,12 +42,12 @@ async def get_user_playlists(token: str = Depends(get_spotify_token)) -> Dict[st
         raise HTTPException(status_code=500, detail="Failed to fetch playlists")
 
 @router.get("/album-covers")
-async def get_album_covers(token: str = Depends(get_spotify_token)) -> List[str]:
+async def get_album_covers(token: str = Depends(get_spotify_token)) -> Dict[str, List[str]]:
     """Get album cover URLs for background"""
     try:
         analytics_service = get_analytics_service()
         covers = await analytics_service.get_album_covers(token)
-        return covers
+        return {"urls": covers}
         
     except Exception as e:
         logger.error(f"Failed to get album covers: {e}")
