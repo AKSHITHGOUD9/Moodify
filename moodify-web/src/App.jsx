@@ -384,6 +384,16 @@ export default function App() {
         <main className="main-content">
           {!me ? (
             <div className="login-section">
+              {/* Server Disclaimer */}
+              <div className="server-disclaimer">
+                <div className="disclaimer-content">
+                  <div className="disclaimer-icon">⚡</div>
+                  <div className="disclaimer-text">
+                    <strong>Server Notice:</strong> This app is currently hosted on Render's free tier and might take a moment to start up. Please bear with us as we scale up in the future!
+                  </div>
+                </div>
+              </div>
+
               <div className="login-card">
                 <h2 className="section-title">Welcome to Moodify</h2>
                 <p className="section-subtitle">AI-powered music discovery</p>
