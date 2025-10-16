@@ -108,8 +108,11 @@ class RecommendationEngine:
         unique_tracks = []
         
         for track in tracks:
+            if not isinstance(track, dict):
+                continue
+                
             track_id = track.get('id')
-            if track_id and track_id not in seen:
+            if track_id and isinstance(track_id, str) and track_id not in seen:
                 seen.add(track_id)
                 unique_tracks.append(track)
         
