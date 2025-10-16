@@ -1520,9 +1520,9 @@ async def get_search_based_recommendations(sp, query: str, user_tracks: List[dic
                         new_tracks.append(track_data)
         
             return new_tracks[:20]
-        except Exception as fallback_error:
-            logger.error(f"Fallback search also failed: {fallback_error}")
-        return []
+        except Exception as e:
+            logger.error(f"Fallback search also failed: {e}")
+            return []
 
 async def get_generic_popular_tracks(sp) -> List[Dict]:
     """Get generic popular tracks as final fallback"""
