@@ -27,11 +27,11 @@ Watch these videos to see Moodify in action:
 **What you'll see:** Complete Spotify OAuth login process and user profile setup.
 
 ### 2. **Analytics Dashboard & How It Works**
-*[Full quality video available - see demos/GIFs/README.md for external links]*
+![Demo 2: Analytics Dashboard](demos/GIFs/Charts&Dashboard.gif)
 **What you'll see:** Interactive analytics dashboard, charts, and "How It Works" modal explanation.
 
 ### 3. **AI Recommendations & Playlist Creation**
-*[Full quality video available - see demos/GIFs/README.md for external links]*
+![Demo 3: AI Recommendations](demos/GIFs/Creating%20playlist.gif)
 **What you'll see:** AI-powered recommendations, smart history filtering, track selection, and playlist creation.
 
 ### 4. **Spotify Integration**
