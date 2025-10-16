@@ -41,9 +41,15 @@ class RecommendationEngine:
             
             history_tracks = self._filter_user_history(access_token, query)
             
+            # Format response to match old backend
+            new_recommendations = [extract_track_info(track) for track in filtered_tracks[:20]]
+            
             return {
-                "from_history": history_tracks,
-                "new_discoveries": [extract_track_info(track) for track in filtered_tracks[:10]]
+                "user_history_recs": history_tracks,
+                "new_recs": new_recommendations,
+                "tracks": new_recommendations,
+                "query": query,
+                "method": "AI-Powered Recommendations"
             }
             
         except Exception as e:

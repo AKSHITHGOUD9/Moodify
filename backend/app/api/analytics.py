@@ -67,17 +67,20 @@ async def get_my_playlists(token: str = Depends(get_spotify_token)) -> Dict[str,
 
 @router.get("/top-tracks")
 async def get_top_tracks(token: str = Depends(get_spotify_token)) -> Dict[str, Any]:
-    """Get user's top tracks"""
+    """Get user's comprehensive analytics data (matches old backend format)"""
     try:
-        from ..core.spotify import SpotifyService
-        spotify_service = SpotifyService()
-        top_tracks = spotify_service.get_user_top_tracks(token, limit=20)
+        analytics_service = get_analytics_service()
+        analytics = await analytics_service.get_user_analytics(token)
         
+        # Return in the format expected by the frontend
         return {
-            "tracks": top_tracks,
-            "total": len(top_tracks)
+            "top_tracks": analytics.get("top_tracks", []),
+            "top_artists": analytics.get("top_artists", []),
+            "recent_tracks": analytics.get("recent_tracks", []),
+            "total_tracks": len(analytics.get("top_tracks", [])),
+            "total_artists": len(analytics.get("top_artists", []))
         }
         
     except Exception as e:
-        logger.error(f"Failed to get top tracks: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch top tracks")
+        logger.error(f"Failed to get analytics data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch analytics data")
