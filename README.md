@@ -2,7 +2,7 @@
 
 **Transform your mood into the perfect playlist with AI-powered music recommendations using Spotify and advanced language models.**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Moodify-brightgreen)](https://moodify-ai-powered.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Moodify-brightgreen)](https://moodify-topaz.vercel.app/)
 [![Tech Stack](https://img.shields.io/badge/Tech%20Stack-React%20%7C%20FastAPI%20%7C%20OpenAI-blue)](https://github.com/AKSHITHGOUD9/Moodify)
 
 ## What Makes Moodify Special
@@ -16,7 +16,7 @@
 
 ## Live Demo
 
-**Try it now:** [https://moodify-ai-powered.vercel.app/](https://moodify-ai-powered.vercel.app/)
+**Try it now:** [https://moodify-topaz.vercel.app/](https://moodify-topaz.vercel.app/)
 
 ## Demo Videos
 
