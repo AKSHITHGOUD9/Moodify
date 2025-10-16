@@ -23,6 +23,7 @@ def get_spotify_token(request: Request) -> str:
     return token
 
 @router.get("/login")
+@router.head("/login")
 async def login():
     """Initiate Spotify OAuth login"""
     try:
