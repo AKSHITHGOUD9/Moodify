@@ -1,6 +1,6 @@
 """Recommendations API routes"""
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Dict, Any
 import logging
 
@@ -20,11 +20,16 @@ def get_recommendation_engine():
 
 @router.post("/recommend-v2")
 async def get_recommendations(
-    query: str,
+    request: Request,
     token: str = Depends(get_spotify_token)
 ) -> Dict[str, Any]:
     """Get AI-powered music recommendations"""
     try:
+        data = await request.json()
+        query = data.get("query", "").strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Query is required")
+        
         recommendation_engine = get_recommendation_engine()
         recommendations = await recommendation_engine.generate_recommendations(
             query=query,
