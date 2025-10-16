@@ -73,3 +73,11 @@ logs/
 # Cache files
 backend/.cache
 .cache
+
+# Demo files and media
+demos/
+*.gif
+*.mp4
+*.mov
+*.avi
+*.webm
