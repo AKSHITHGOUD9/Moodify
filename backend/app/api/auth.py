@@ -30,7 +30,7 @@ async def login():
         spotify_service = get_spotify_service()
         state = secrets.token_urlsafe(32)
         auth_url = spotify_service.oauth.get_authorize_url(state=state)
-        return {"auth_url": auth_url}
+        return RedirectResponse(url=auth_url)
     except Exception as e:
         logger.error(f"Login initiation failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to initiate login")
