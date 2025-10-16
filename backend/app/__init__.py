@@ -1,1 +1,0 @@
-"""Moodify Backend Application Package"""

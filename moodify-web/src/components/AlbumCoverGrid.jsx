@@ -1,24 +1,16 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import './AlbumCoverGrid.css';
 
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
 const API = import.meta.env.VITE_BACKEND_URL;
 
-/**
- * AlbumCoverGrid Component
- * 
- * Creates an interactive background grid of album covers that respond to mouse movement.
- * Features:
- * - Fetches album covers from user's Spotify history
- * - Proximity-based visual effects (opacity, scale, shadow)
- * - Smooth fade-in/out animations based on cursor movement
- * - Responsive grid layout that fills the entire viewport
- * - Fallback placeholder covers if API fails
- * 
- * Performance optimizations:
- * - Throttled mouse move events
- * - Memoized calculations
- * - Efficient DOM updates
- */
+// =============================================================================
+// ALBUM COVER GRID COMPONENT
+// =============================================================================
+
 const AlbumCoverGrid = () => {
   const [albumCovers, setAlbumCovers] = useState([]);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
@@ -30,24 +22,23 @@ const AlbumCoverGrid = () => {
   const fadeTimeout = useRef(null);
   const showTimeout = useRef(null);
 
+  // =============================================================================
+  // DATA FETCHING
+  // =============================================================================
+
   const fetchAndShuffleCovers = useCallback(async () => {
     try {
-      // Get token from localStorage
       const token = localStorage.getItem('spotify_token');
       const url = token ? `${API}/api/album-covers?token=${token}` : `${API}/api/album-covers`;
       
       const res = await fetch(url);
       if (!res.ok) {
-        console.warn("Failed to fetch album covers:", res.status, res.statusText);
         setAlbumCovers([]);
         return;
       }
       const data = await res.json();
       
-      console.log("Fetched album covers:", data.urls?.length || 0);
-      
       if (!data.urls || data.urls.length === 0) {
-        console.warn("No album covers received from API");
         setAlbumCovers([]);
         return;
       }
@@ -64,10 +55,7 @@ const AlbumCoverGrid = () => {
       }
       
       setAlbumCovers(finalUrls.slice(0, neededTiles));
-      console.log(`Rendering ${finalUrls.slice(0, neededTiles).length} album cover tiles`);
     } catch (e) {
-      console.warn("Error fetching album covers:", e.message);
-      // Fallback: create placeholder covers if API fails
       const placeholderCovers = Array.from({ length: 800 }, (_, i) => 
         `https://via.placeholder.com/300x300/4f46e5/ffffff?text=Album+${i + 1}`
       );
@@ -75,7 +63,10 @@ const AlbumCoverGrid = () => {
     }
   }, []);
 
-  // Optimized mouse move handler with throttling for better performance
+  // =============================================================================
+  // MOUSE INTERACTION
+  // =============================================================================
+
   const handleMouseMove = useCallback((e) => {
     const now = Date.now();
     lastMouseMove.current = now;
@@ -100,15 +91,17 @@ const AlbumCoverGrid = () => {
     fadeTimeout.current = setTimeout(() => {
       setIsCursorMoving(false);
       setShowTiles(false); // Hide tiles completely when cursor stops
-    }, 1500); // Fade out after 1.5 seconds of no movement
+    }, 1500);
   }, []);
 
-  // Initialize album covers and set up mouse tracking
+  // =============================================================================
+  // EFFECTS
+  // =============================================================================
+
   useEffect(() => {
-    // Wait a bit for the token to be stored, then fetch album covers
     const timer = setTimeout(() => {
       fetchAndShuffleCovers();
-    }, 1000); // Wait 1 second for token to be available
+    }, 1000);
 
     window.addEventListener('mousemove', handleMouseMove);
     
@@ -124,8 +117,6 @@ const AlbumCoverGrid = () => {
     };
   }, [fetchAndShuffleCovers, handleMouseMove]);
 
-  // Calculate tile positions for proximity-based effects
-  // This runs after album covers are loaded and DOM is updated
   useEffect(() => {
     const timer = setTimeout(() => {
       if (gridRef.current && gridRef.current.children.length > 0) {
@@ -138,10 +129,14 @@ const AlbumCoverGrid = () => {
         });
         setTilePositions(positions);
       }
-    }, 100); // Small delay to ensure DOM is fully rendered
+    }, 100);
 
     return () => clearTimeout(timer);
   }, [albumCovers]); 
+
+  // =============================================================================
+  // RENDER
+  // =============================================================================
 
   return (
     <div className="album-grid-container">

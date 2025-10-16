@@ -14,7 +14,10 @@ import {
 } from 'chart.js';
 import { Line, Bar, Radar } from 'react-chartjs-2';
 
-// Register Chart.js components
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -28,10 +31,12 @@ ChartJS.register(
   RadialLinearScale
 );
 
+// =============================================================================
+// CHARTS MODAL COMPONENT
+// =============================================================================
+
 const ChartsModal = ({ isOpen, onClose, analytics }) => {
   if (!isOpen || !analytics) return null;
-
-  // Theme colors for charts
   const themeColors = {
     primary: '#4FA1FF',
     secondary: '#7B68EE',
@@ -44,7 +49,10 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
     grid: 'rgba(255, 255, 255, 0.1)'
   };
 
-  // Generate mock daily play counts for the last 30 days
+  // =============================================================================
+  // CHART DATA GENERATION
+  // =============================================================================
+
   const generateListeningTrends = () => {
     const days = [];
     const playCounts = [];
@@ -276,6 +284,10 @@ const ChartsModal = ({ isOpen, onClose, analytics }) => {
       }
     }
   };
+
+  // =============================================================================
+  // RENDER
+  // =============================================================================
 
   return (
     <div className="charts-modal-overlay">

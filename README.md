@@ -226,11 +226,6 @@ Moodify/
 │   │   ├── App.jsx        # Main React component
 │   │   └── components/    # React components
 │   └── package.json       # Node dependencies
-├── demos/                 # Demo videos
-│   ├── Intro.mp4
-│   ├── Charts&Dashboard.mp4
-│   ├── Creating playlist.mp4
-│   └── Playlist created in spotify.mp4
 └── README.md              # This file
 ```
 
@@ -241,10 +236,6 @@ Moodify/
 3. Make your changes
 4. Submit a pull request
 
-## License
-
-This project is licensed under the MIT License.
-
 ## Acknowledgments
 
 - Spotify for the amazing Web API
@@ -252,7 +243,3 @@ This project is licensed under the MIT License.
 - React and FastAPI communities
 
 ---
-
-**Made with love for music lovers everywhere**
-
-*Experience the future of music discovery with AI-powered recommendations!*

@@ -1,26 +1,7 @@
-"""
-Moodify Backend - OpenAI Version
-===============================
-
-AI-Powered Music Discovery Platform using OpenAI GPT models.
-This version uses OpenAI's API for AI-powered recommendations.
-
-Features:
-- Spotify OAuth authentication
-- OpenAI GPT integration
-- Music history analysis
-- Intelligent track selection
-- Spotify recommendations
-
-Author: Moodify Development Team
-Version: 1.0.0
-"""
-
 # =============================================================================
-# IMPORTS
+# MOODIFY BACKEND - AI-POWERED MUSIC DISCOVERY PLATFORM
 # =============================================================================
 
-# Standard library imports
 import os
 import secrets
 import time
@@ -32,7 +13,6 @@ from typing import Dict, List, Optional, Union
 from urllib.parse import urlencode
 from functools import lru_cache
 
-# Third-party imports
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import requests
@@ -40,25 +20,18 @@ from dotenv import load_dotenv
 import openai
 from openai import OpenAI
 
-# AI Model imports
 try:
     from huggingface_hub import InferenceClient
     HUGGINGFACE_AVAILABLE = True
 except ImportError:
     HUGGINGFACE_AVAILABLE = False
-    print("Hugging Face not available. Install with: pip install huggingface_hub")
 
 try:
     import google.generativeai as genai
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    print("Gemini not available. Install with: pip install google-generativeai")
 
-# Note: LangChain imports removed to avoid deployment issues
-# Using direct OpenAI integration instead
-
-# FastAPI and middleware imports
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -69,63 +42,48 @@ from starlette.middleware.sessions import SessionMiddleware
 # CONFIGURATION
 # =============================================================================
 
-# Load environment variables
 load_dotenv()
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Spotify API configuration
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 
-# AI Model configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 HUGGINGFACE_API_KEY = os.getenv("HUGGING_FACE_KEYS")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEYS")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
-# Initialize AI clients
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 huggingface_client = InferenceClient(token=HUGGINGFACE_API_KEY) if HUGGINGFACE_API_KEY and HUGGINGFACE_AVAILABLE else None
+
 if GEMINI_API_KEY and GEMINI_AVAILABLE:
     genai.configure(api_key=GEMINI_API_KEY)
     gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 else:
     gemini_model = None
 
-# Security configuration
 SESSION_SECRET = os.getenv("SESSION_SECRET", secrets.token_urlsafe(32))
-
-# CORS configuration
 FRONTEND_URLS = os.getenv("FRONTEND_URLS", "http://127.0.0.1:5173,https://moodify-ai-powered.vercel.app").split(",")
 POST_LOGIN_REDIRECT = os.getenv("POST_LOGIN_REDIRECT", "http://127.0.0.1:5173/")
-
-# Initialize OpenAI client
-openai_client = None
-if OPENAI_API_KEY:
-    from openai import OpenAI
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # =============================================================================
 # FASTAPI APPLICATION
 # =============================================================================
 
-# Initialize FastAPI app
 app = FastAPI(
-    title="Moodify API - OpenAI Version",
-    description="AI-Powered Music Discovery Platform with OpenAI GPT",
+    title="Moodify API",
+    description="AI-Powered Music Discovery Platform",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=FRONTEND_URLS,
@@ -134,11 +92,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Session middleware
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET,
-    max_age=60 * 60 * 2,  # 2 hours - shorter session for better security
+    max_age=60 * 60 * 2,
     https_only=False,
     same_site="lax"
 )
@@ -148,7 +105,6 @@ app.add_middleware(
 # =============================================================================
 
 def get_spotify_oauth():
-    """Get Spotify OAuth configuration"""
     return SpotifyOAuth(
         client_id=SPOTIFY_CLIENT_ID,
         client_secret=SPOTIFY_CLIENT_SECRET,
@@ -157,16 +113,11 @@ def get_spotify_oauth():
     )
 
 async def _ensure_token(request: Request):
-    """Ensure we have a valid Spotify token"""
     session = request.session
-    
-    logger.info(f"Session keys in _ensure_token: {list(session.keys())}")
-    logger.info(f"Session ID: {session.session_id if hasattr(session, 'session_id') else 'No session ID'}")
     
     if "spotify_token_info" in session:
         token_info = session["spotify_token_info"]
         
-        # Check if token is expired
         if time.time() > token_info.get("expires_at", 0):
             try:
                 oauth = get_spotify_oauth()
@@ -184,29 +135,24 @@ async def _ensure_token(request: Request):
 # USER PROFILE CACHING
 # =============================================================================
 
-# In-memory cache for user profiles (in production, use Redis)
 user_profile_cache = {}
 album_covers_cache = {}
 
 async def cache_user_music_profile(sp, user_id: str) -> Dict:
-    """Cache user's complete music profile for instant AI recommendations"""
     try:
         logger.info(f"Caching music profile for user: {user_id}")
         
-        # Get comprehensive user data
         top_tracks_short = await asyncio.to_thread(sp.current_user_top_tracks, limit=50, time_range='short_term')
         top_tracks_medium = await asyncio.to_thread(sp.current_user_top_tracks, limit=50, time_range='medium_term')
         top_tracks_long = await asyncio.to_thread(sp.current_user_top_tracks, limit=50, time_range='long_term')
         top_artists = await asyncio.to_thread(sp.current_user_top_artists, limit=50, time_range='medium_term')
         
-        # Analyze genres from top artists
         genres = set()
         artists = []
         for artist in top_artists['items']:
             artists.append(artist['name'])
             genres.update(artist.get('genres', []))
         
-        # Analyze eras from tracks
         eras = set()
         for track_list in [top_tracks_short, top_tracks_medium, top_tracks_long]:
             for track in track_list.get('items', []):
@@ -217,7 +163,6 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
                 except:
                     pass
         
-        # Detect regional preferences
         regional_preferences = set()
         all_track_names = []
         all_artists = []
@@ -228,7 +173,6 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
                 for artist in track['artists']:
                     all_artists.append(artist['name'].lower())
         
-        # Check for regional music indicators
         regional_keywords = {
             'telugu': ['telugu', 'tollywood'],
             'tamil': ['tamil', 'kollywood'],
@@ -241,7 +185,6 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
             if any(keyword in ' '.join(all_track_names + all_artists) for keyword in keywords):
                 regional_preferences.add(region)
         
-        # Create comprehensive profile with detailed track information
         profile = {
             "user_id": user_id,
             "top_artists": artists[:20],
@@ -250,11 +193,10 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
             "regional_preferences": list(regional_preferences),
             "total_tracks_analyzed": len(top_tracks_short['items']) + len(top_tracks_medium['items']) + len(top_tracks_long['items']),
             "cached_at": time.time(),
-            "sample_track_names": all_track_names[:30],  # For AI context
-            "detailed_tracks": []  # Store detailed track info for AI
+            "sample_track_names": all_track_names[:30],
+            "detailed_tracks": []
         }
         
-        # Add detailed track information for AI analysis
         for track_list in [top_tracks_short, top_tracks_medium, top_tracks_long]:
             for track in track_list.get('items', []):
                 try:
@@ -272,10 +214,7 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
                 except:
                     pass
         
-        # Limit detailed tracks to top 50 for performance
         profile["detailed_tracks"] = profile["detailed_tracks"][:50]
-        
-        # Cache the profile
         user_profile_cache[user_id] = profile
         logger.info(f"Cached profile for user {user_id}: {len(artists)} artists, {len(genres)} genres")
         
@@ -286,41 +225,32 @@ async def cache_user_music_profile(sp, user_id: str) -> Dict:
         return {}
 
 async def get_cached_user_profile(user_id: str) -> Dict:
-    """Get cached user profile"""
     return user_profile_cache.get(user_id, {})
 
 def is_track_relevant_to_profile(track: Dict, user_profile: Dict, query: str) -> bool:
-    """Check if a track is relevant to user's profile and query"""
     try:
         track_name = track['name'].lower()
         artists = ' '.join(track['artists']).lower()
         album = track['album'].lower()
         
-        # Check against user's favorite artists
         if user_profile.get('top_artists'):
             if any(artist.lower() in artists for artist in user_profile['top_artists'][:10]):
                 return True
         
-        # Check against user's favorite genres (if we had genre info for tracks)
-        # This would require additional Spotify API calls
-        
-        # Check against regional preferences
         if user_profile.get('regional_preferences'):
             for region in user_profile['regional_preferences']:
                 if region.lower() in track_name or region.lower() in artists:
                     return True
         
-        # Check against query context
         query_lower = query.lower()
         if any(word in track_name or word in artists for word in query_lower.split() if len(word) > 2):
             return True
         
-        # Default: include track if it's reasonably popular
         return track.get('popularity', 0) > 30
         
     except Exception as e:
         logger.error(f"Error checking track relevance: {e}")
-        return True  # Default to including track
+        return True
 
 # =============================================================================
 # LLM INTEGRATION (Direct OpenAI)

@@ -5,20 +5,22 @@ import AlbumCoverGrid from "./components/AlbumCoverGrid";
 import RecommendationGridV2 from "./components/RecommendationGridV2";
 import ChartsModal from "./components/ChartsModal";
 
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
 const API = import.meta.env.VITE_BACKEND_URL || "https://moodify-ai-powered.onrender.com";
-
-// Elegant single quote
 const ELEGANT_QUOTE = "Your emotions, our algorithms, pure magic";
-// Dashboard enhancements deployed - v4 - Force deployment
 
+// =============================================================================
+// MAIN APP COMPONENT
+// =============================================================================
 
-// Main App Component
 export default function App() {
 
-  // =========================================================================
+  // =============================================================================
   // STATE MANAGEMENT
-  // Manages all component state variables
-  // =========================================================================
+  // =============================================================================
   const [me, setMe] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,57 +44,40 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("charts");
   const [showTooltip, setShowTooltip] = useState(null);
   const [showChartsModal, setShowChartsModal] = useState(false);
-  // Always using AI system - toggle removed
   const [recommendationData, setRecommendationData] = useState(null);
   const [spotifyToken, setSpotifyToken] = useState(null);
   const recommendationRef = useRef(null);
 
-  // =========================================================================
-  // DATA FETCHING & LOGIC
-  // Handles all API calls and core application logic
-  // =========================================================================
+  // =============================================================================
+  // DATA FETCHING & AUTHENTICATION
+  // =============================================================================
   
-  // Handle token from URL after Spotify authentication
   useEffect(() => {
-    console.log("App.jsx: Token handling useEffect running");
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const userId = urlParams.get('user_id');
     
-    console.log("App.jsx: URL params - token:", token ? "present" : "none", "userId:", userId ? "present" : "none");
-    
     if (token) {
-      console.log("App.jsx: Token found in URL, setting up token-based auth");
       setSpotifyToken(token);
       localStorage.setItem('spotify_token', token);
       if (userId) {
         localStorage.setItem('spotify_user_id', userId);
       }
       
-      // Clear any existing errors when token becomes available
       setRecsErr("");
-      
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      
-      // Fetch user data with token
       fetchUserDataWithToken(token);
     } else {
-      // Try to get token from localStorage
       const storedToken = localStorage.getItem('spotify_token');
-      console.log("App.jsx: No token in URL, checking localStorage:", storedToken ? "token found" : "no token");
       if (storedToken) {
         setSpotifyToken(storedToken);
-        // Clear any existing errors when token becomes available
         setRecsErr("");
-        // Fetch user data with stored token
         fetchUserDataWithToken(storedToken);
       }
     }
   }, []);
 
   const fetchUserDataWithToken = async (token) => {
-    console.log("Fetching user data with token:", token ? "Token present" : "No token");
     setLoading(true);
     try {
       const controller = new AbortController();
@@ -119,31 +104,24 @@ export default function App() {
     }
   };
   const login = useCallback(() => {
-    // Add timestamp to force fresh authentication
     const timestamp = Date.now();
     window.location.href = `${API}/login?t=${timestamp}`;
   }, []);
 
   const loadMe = useCallback(async () => {
-    // If we have a token, use the token-based function instead
     if (spotifyToken) {
       return fetchUserDataWithToken(spotifyToken);
     }
-    
-    // No token available - this should not happen in normal flow
-    console.log("No token available for loadMe");
     return;
   }, []);
 
   const handleLogout = useCallback(async () => {
     try {
-      // Call logout endpoint to clear session
       await fetch(`${API}/logout`, { 
         method: "POST", 
         credentials: "include" 
       });
       
-      // Clear local state
       setMe(null);
       setShowProfile(false);
       setRecs([]);
@@ -154,17 +132,19 @@ export default function App() {
       setErr("");
       setSpotifyToken(null);
       
-      // Clear localStorage
       localStorage.removeItem('spotify_token');
       localStorage.removeItem('spotify_user_id');
       
-      // Show success message
       alert("Successfully logged out!");
     } catch (e) {
       console.error("Error during logout:", e);
       alert("Error during logout. Please try again.");
     }
   }, []);
+
+  // =============================================================================
+  // ANALYTICS & DATA LOADING
+  // =============================================================================
 
   const loadAnalytics = useCallback(async () => {
     setLoadingAnalytics(true);
@@ -211,19 +191,16 @@ export default function App() {
     setShowDashboard(!showDashboard);
   }, [showDashboard, analytics, playlists, loadAnalytics, loadPlaylists]);
 
-  /**
-   * Generates track recommendations based on user mood.
-   * Note: This function no longer auto-creates a playlist. It only fetches track data.
-   */
+  // =============================================================================
+  // RECOMMENDATIONS
+  // =============================================================================
+
   const generateRecs = useCallback(async () => {
-    console.log("generateRecs called. spotifyToken:", spotifyToken ? "present" : "not present", "mood:", mood);
     if (!mood.trim()) return;
     
-    // Don't make requests if we don't have a token
     if (!spotifyToken) {
-      console.log("generateRecs: No token available, setting error");
       setRecsErr("Please wait for authentication to complete");
-      setIsGenerating(false); // Ensure loading state is reset
+      setIsGenerating(false);
       return;
     }
 
@@ -234,11 +211,9 @@ export default function App() {
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       
       const url = spotifyToken ? `${API}/recommend-v2?token=${spotifyToken}` : `${API}/recommend-v2`;
-      console.log("Making recommendation request to:", url);
-      console.log("Spotify token present:", !!spotifyToken);
       
       const res = await fetch(url, {
         method: "POST",
@@ -246,11 +221,9 @@ export default function App() {
         signal: controller.signal,
         body: JSON.stringify({
           query: mood.trim(),
-          create_playlist: false, // Explicitly set to false
+          create_playlist: false,
         }),
       });
-      
-      console.log("Recommendation response status:", res.status, res.statusText);
       
       clearTimeout(timeoutId);
       
@@ -260,16 +233,11 @@ export default function App() {
       }
       
       const data = await res.json();
-      console.log("Recommendation response data:", data);
       setRecs(data);
       
-      // Store the track IDs for later playlist creation
       if (data.tracks?.length > 0) {
         const ids = data.tracks.map(track => track.id);
-        console.log("Setting track IDs:", ids);
         setTrackIds(ids);
-      } else {
-        console.log("No tracks found in response:", data);
       }
       
     } catch (e) {
@@ -283,7 +251,6 @@ export default function App() {
     }
   }, [mood, spotifyToken]);
 
-  // Memoized tracks to use for playlist creation
   const tracksToUse = useMemo(() => {
     if (recommendationData) {
       return recommendationData.getSelectedTrackIds ? recommendationData.getSelectedTrackIds() : [];
@@ -291,10 +258,10 @@ export default function App() {
     return trackIds;
   }, [recommendationData, trackIds]);
 
-  /**
-   * Creates a Spotify playlist from the currently loaded recommendations.
-   * This is a user-initiated action.
-   */
+  // =============================================================================
+  // PLAYLIST CREATION
+  // =============================================================================
+
   const createPlaylistFromRecs = async () => {
     if (tracksToUse.length === 0) {
       alert("No tracks selected for the playlist. Please select some songs first.");
@@ -336,9 +303,10 @@ export default function App() {
     setRecommendationData(data);
   };
 
-  // Memoized filtered suggestions for better performance
+  // =============================================================================
+  // UI EVENT HANDLERS
+  // =============================================================================
 
-  // Search input handling - no auto-search, only manual trigger
   const handleSearchInputChange = useCallback((e) => {
     const value = e.target.value;
     setMood(value);
@@ -363,28 +331,19 @@ export default function App() {
     }
   }, [mood, isGenerating]);
 
-
-  // =========================================================================
+  // =============================================================================
   // UI EFFECTS
-  // Handles non-rendering side effects like API calls on component mount
-  // =========================================================================
+  // =============================================================================
+
   useEffect(() => {
-    // Only call loadMe if we don't have a token (token-based loading is handled separately)
-    // But don't call it at all to prevent session-based API calls that cause errors
     if (!spotifyToken) {
-      console.log("No token available, skipping loadMe call to prevent session-based API errors");
       return;
     }
   }, [spotifyToken]);
 
-
-
-  // =========================================================================
-  // COMPONENT RENDERING
-  // Defines the component's UI structure
-  // =========================================================================
-  console.log("App.jsx: Rendering component - me:", me ? "logged in" : "not logged in", "loading:", loading, "error:", err);
-  console.log("App.jsx: Build timestamp:", new Date().toISOString());
+  // =============================================================================
+  // RENDER
+  // =============================================================================
   
   return (
     <div className="app-container">
@@ -890,7 +849,7 @@ export default function App() {
               <div className="step">
                 <div className="step-number">1</div>
                 <div className="step-content">
-                  <h3>MoodifyAnalyze Your Music</h3>
+                  <h3>Moodify Analyze Your Music</h3>
                   <p>When you connect Spotify, we analyze your listening history to understand your musical taste - your favorite artists, genres, and regional preferences.</p>
                 </div>
               </div>

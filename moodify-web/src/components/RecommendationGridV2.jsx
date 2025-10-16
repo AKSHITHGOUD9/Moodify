@@ -1,27 +1,16 @@
 import { useState, useEffect, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
-// import SpotifyPlayer from './SpotifyPlayer'; // Removed for now
 import './RecommendationGridV2.css';
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
 
 const API = import.meta.env.VITE_BACKEND_URL;
 
-/**
- * RecommendationGridV2 Component
- * 
- * Advanced music recommendation system with AI-powered track selection.
- * Features:
- * - Two-column layout: "From Your History" and "New Discoveries"
- * - Drag-and-drop reordering within each column
- * - Track selection/deselection with checkboxes
- * - Spotify-style album art collage header
- * - Real-time search suggestions
- * - Playlist creation integration
- * 
- * Performance optimizations:
- * - Debounced API calls
- * - Memoized calculations
- * - Efficient re-renders
- * - AbortController for request cancellation
- */
+// =============================================================================
+// RECOMMENDATION GRID V2 COMPONENT
+// =============================================================================
+
 const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, ref) => {
   const [historyRecs, setHistoryRecs] = useState([]);
   const [newRecs, setNewRecs] = useState([]);
@@ -29,11 +18,11 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
   const [error, setError] = useState('');
   const [analysis, setAnalysis] = useState(null);
   const [hasGenerated, setHasGenerated] = useState(false);
-  // const [currentTrack, setCurrentTrack] = useState(null);
-  // const [isPlaying, setIsPlaying] = useState(false);
-  // const [playingTrackId, setPlayingTrackId] = useState(null);
 
-  // Generate AI-powered music recommendations with timeout protection
+  // =============================================================================
+  // RECOMMENDATION GENERATION
+  // =============================================================================
+
   const generateRecommendations = useCallback(async () => {
     if (!query.trim() || hasGenerated) return;
 
@@ -88,7 +77,10 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
     }
   }, [query, hasGenerated, onRecommendationsGenerated]);
 
-  // Reset when query changes
+  // =============================================================================
+  // EFFECTS
+  // =============================================================================
+
   useEffect(() => {
     setHasGenerated(false);
     setHistoryRecs([]);
@@ -97,16 +89,16 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
     setAnalysis(null);
   }, [query]);
 
-  // Auto-fetch removed - now only manual trigger via Go button or Enter key
-  
-  // Manual trigger method for parent component
+  // =============================================================================
+  // TRACK MANAGEMENT
+  // =============================================================================
+
   const triggerGeneration = useCallback(() => {
     if (query.trim() && !hasGenerated) {
       generateRecommendations();
     }
   }, [query, hasGenerated, generateRecommendations]);
 
-  // Toggle track selection state for playlist creation
   const handleTrackToggle = useCallback((trackId, source) => {
     if (source === 'history') {
       setHistoryRecs(prev => 
@@ -127,7 +119,6 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
     }
   }, []);
 
-  // Handle drag-and-drop reordering of tracks within each column
   const handleTrackReorder = useCallback((source, fromIndex, toIndex) => {
     if (source === 'history') {
       setHistoryRecs(prev => {
@@ -146,36 +137,26 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
     }
   }, []);
 
-  // Get all selected tracks from both columns for playlist creation
   const getAllSelectedTracks = useCallback(() => {
     const selectedHistory = historyRecs.filter(track => track.selected);
     const selectedNew = newRecs.filter(track => track.selected);
     return [...selectedHistory, ...selectedNew];
   }, [historyRecs, newRecs]);
 
-  // Get only the track IDs for API calls
   const getSelectedTrackIds = useCallback(() => {
     return getAllSelectedTracks().map(track => track.id);
   }, [getAllSelectedTracks]);
 
-  // Expose methods to parent component via ref
+  // =============================================================================
+  // REF HANDLING
+  // =============================================================================
+
   useImperativeHandle(ref, () => ({
     getSelectedTrackIds,
     getAllSelectedTracks,
     triggerGeneration
   }), [getSelectedTrackIds, getAllSelectedTracks, triggerGeneration]);
 
-  // const handleTrackPlay = (track) => {
-  //   setCurrentTrack(track);
-  //   setPlayingTrackId(track.id);
-  //   // The SpotifyPlayer component will handle the actual playback
-  // };
-
-  // const handlePlayPause = (playing) => {
-  //   setIsPlaying(playing);
-  // };
-
-  // Expose methods to parent component
   useEffect(() => {
     if (onRecommendationsGenerated) {
       onRecommendationsGenerated({
@@ -189,6 +170,10 @@ const RecommendationGridV2 = forwardRef(({ query, onRecommendationsGenerated }, 
       });
     }
   }, [historyRecs, newRecs, analysis]);
+
+  // =============================================================================
+  // RENDER
+  // =============================================================================
 
   if (loading) {
     return (
