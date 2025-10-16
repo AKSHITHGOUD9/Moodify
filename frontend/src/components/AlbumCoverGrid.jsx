@@ -108,8 +108,10 @@ const AlbumCoverGrid = () => {
 
   // Initialize album covers and set up mouse tracking
   useEffect(() => {
+    console.log("AlbumCoverGrid: useEffect triggered - setting up timer");
     // Wait a bit for the token to be stored, then fetch album covers
     const timer = setTimeout(() => {
+      console.log("AlbumCoverGrid: Timer expired - calling fetchAndShuffleCovers");
       fetchAndShuffleCovers();
     }, 1000); // Wait 1 second for token to be available
 
