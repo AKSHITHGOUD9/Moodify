@@ -59,7 +59,7 @@ Watch these videos to see Moodify in action:
 
 ### 1. Clone the Repository
 
-**Option A: Quick Clone (Recommended for Development)**
+**Option A: Quick Clone (Recommended - No Git LFS needed)**
 ```bash
 # Clone without demo files (faster, smaller download)
 git clone --filter=blob:none --sparse https://github.com/AKSHITHGOUD9/Moodify.git
@@ -67,16 +67,16 @@ cd Moodify
 git sparse-checkout set --no-cone '/*' '!demos'
 ```
 
-**Option B: Full Clone (Includes Demo Files)**
+**Option B: Full Clone (Only if you want demo files)**
 ```bash
 # Clone with all files including demo GIFs
 git clone https://github.com/AKSHITHGOUD9/Moodify.git
 cd Moodify
-git lfs install  # Install Git LFS for large files
-git lfs pull     # Download demo files
+git lfs install  # Only needed if you want demo files
+git lfs pull     # Only needed if you want demo files
 ```
 
-> 💡 **Tip**: Use Option A for faster setup. Demo files are only needed for viewing demo videos. See [CLONE_OPTIONS.md](CLONE_OPTIONS.md) for more details.
+> 💡 **Most users should use Option A** - no Git LFS installation required, gets all the code you need!
 
 ### 2. Backend Setup
 
