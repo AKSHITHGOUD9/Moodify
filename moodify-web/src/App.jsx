@@ -9,7 +9,7 @@ const API = import.meta.env.VITE_BACKEND_URL || "https://moodify-ai-powered.onre
 
 // Elegant single quote
 const ELEGANT_QUOTE = "Your emotions, our algorithms, pure magic";
-// Dashboard enhancements deployed - v3 - Force deployment
+// Dashboard enhancements deployed - v4 - Force deployment
 
 
 // Main App Component
