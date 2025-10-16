@@ -390,8 +390,6 @@ export default function App() {
     <div className="app-container">
       {/* Advanced Fluid Cursor Animation - Only show when user is authenticated */}
       {me && <AlbumCoverGrid />}
-      {/* Debug: Always show AlbumCoverGrid to test */}
-      <AlbumCoverGrid />
 
       {/* Main content */}
       <div className="content">

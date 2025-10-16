@@ -20,7 +20,6 @@ const API = import.meta.env.VITE_BACKEND_URL;
  * - Efficient DOM updates
  */
 const AlbumCoverGrid = () => {
-  console.log("AlbumCoverGrid: Component rendering");
   const [albumCovers, setAlbumCovers] = useState([]);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [tilePositions, setTilePositions] = useState([]);
@@ -33,12 +32,10 @@ const AlbumCoverGrid = () => {
 
   const fetchAndShuffleCovers = useCallback(async () => {
     try {
-      console.log("AlbumCoverGrid: Starting to fetch album covers...");
       // Get token from localStorage
       const token = localStorage.getItem('spotify_token');
       const url = token ? `${API}/api/album-covers?token=${token}` : `${API}/api/album-covers`;
       
-      console.log("AlbumCoverGrid: Fetching from URL:", url);
       const res = await fetch(url);
       if (!res.ok) {
         console.warn("Failed to fetch album covers:", res.status, res.statusText);
@@ -47,20 +44,11 @@ const AlbumCoverGrid = () => {
       }
       const data = await res.json();
       
-      console.log("AlbumCoverGrid: Raw API response:", data);
       console.log("Fetched album covers:", data.urls?.length || 0);
       
       if (!data.urls || data.urls.length === 0) {
-        console.warn("No album covers received from API - using fallback covers");
-        // Use fallback album covers for testing
-        const fallbackCovers = [
-          "https://i.scdn.co/image/ab67616d0000b273c8a11e48c91a982d086afc69",
-          "https://i.scdn.co/image/ab67616d0000b2734f7b717b8a0e0c9b0e0e0e0",
-          "https://i.scdn.co/image/ab67616d0000b2738b8b8b8b8b8b8b8b8b8b8b8",
-          "https://i.scdn.co/image/ab67616d0000b2731a1a1a1a1a1a1a1a1a1a1a1a",
-          "https://i.scdn.co/image/ab67616d0000b2732b2b2b2b2b2b2b2b2b2b2b2b"
-        ];
-        setAlbumCovers(fallbackCovers);
+        console.warn("No album covers received from API");
+        setAlbumCovers([]);
         return;
       }
       
@@ -117,22 +105,8 @@ const AlbumCoverGrid = () => {
 
   // Initialize album covers and set up mouse tracking
   useEffect(() => {
-    console.log("AlbumCoverGrid: useEffect triggered - setting up timer");
-    
-    // Set some test covers immediately for debugging
-    const testCovers = [
-      "https://i.scdn.co/image/ab67616d0000b273c8a11e48c91a982d086afc69",
-      "https://i.scdn.co/image/ab67616d0000b2734f7b717b8a0e0c9b0e0e0e0",
-      "https://i.scdn.co/image/ab67616d0000b2738b8b8b8b8b8b8b8b8b8b8b8",
-      "https://i.scdn.co/image/ab67616d0000b2731a1a1a1a1a1a1a1a1a1a1a1a",
-      "https://i.scdn.co/image/ab67616d0000b2732b2b2b2b2b2b2b2b2b2b2b2b"
-    ];
-    console.log("AlbumCoverGrid: Setting test covers immediately");
-    setAlbumCovers(testCovers);
-    
     // Wait a bit for the token to be stored, then fetch album covers
     const timer = setTimeout(() => {
-      console.log("AlbumCoverGrid: Timer expired - calling fetchAndShuffleCovers");
       fetchAndShuffleCovers();
     }, 1000); // Wait 1 second for token to be available
 
@@ -169,8 +143,6 @@ const AlbumCoverGrid = () => {
     return () => clearTimeout(timer);
   }, [albumCovers]); 
 
-  console.log("AlbumCoverGrid: Rendering grid with", albumCovers.length, "covers");
-  
   return (
     <div className="album-grid-container">
       {/* Dark background overlay */}
