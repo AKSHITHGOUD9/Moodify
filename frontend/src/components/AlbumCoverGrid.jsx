@@ -51,8 +51,16 @@ const AlbumCoverGrid = () => {
       console.log("Fetched album covers:", data.urls?.length || 0);
       
       if (!data.urls || data.urls.length === 0) {
-        console.warn("No album covers received from API");
-        setAlbumCovers([]);
+        console.warn("No album covers received from API - using fallback covers");
+        // Use fallback album covers for testing
+        const fallbackCovers = [
+          "https://i.scdn.co/image/ab67616d0000b273c8a11e48c91a982d086afc69",
+          "https://i.scdn.co/image/ab67616d0000b2734f7b717b8a0e0c9b0e0e0e0",
+          "https://i.scdn.co/image/ab67616d0000b2738b8b8b8b8b8b8b8b8b8b8b8",
+          "https://i.scdn.co/image/ab67616d0000b2731a1a1a1a1a1a1a1a1a1a1a1a",
+          "https://i.scdn.co/image/ab67616d0000b2732b2b2b2b2b2b2b2b2b2b2b2b"
+        ];
+        setAlbumCovers(fallbackCovers);
         return;
       }
       
@@ -110,6 +118,18 @@ const AlbumCoverGrid = () => {
   // Initialize album covers and set up mouse tracking
   useEffect(() => {
     console.log("AlbumCoverGrid: useEffect triggered - setting up timer");
+    
+    // Set some test covers immediately for debugging
+    const testCovers = [
+      "https://i.scdn.co/image/ab67616d0000b273c8a11e48c91a982d086afc69",
+      "https://i.scdn.co/image/ab67616d0000b2734f7b717b8a0e0c9b0e0e0e0",
+      "https://i.scdn.co/image/ab67616d0000b2738b8b8b8b8b8b8b8b8b8b8b8",
+      "https://i.scdn.co/image/ab67616d0000b2731a1a1a1a1a1a1a1a1a1a1a1a",
+      "https://i.scdn.co/image/ab67616d0000b2732b2b2b2b2b2b2b2b2b2b2b2b"
+    ];
+    console.log("AlbumCoverGrid: Setting test covers immediately");
+    setAlbumCovers(testCovers);
+    
     // Wait a bit for the token to be stored, then fetch album covers
     const timer = setTimeout(() => {
       console.log("AlbumCoverGrid: Timer expired - calling fetchAndShuffleCovers");
