@@ -37,9 +37,10 @@ app.add_middleware(
     same_site="lax"
 )
 
+# Include all API routers
 app.include_router(auth.router, tags=["Authentication"])
 app.include_router(recommendations.router, tags=["Recommendations"])
-app.include_router(analytics.router, tags=["Analytics"])
+app.include_router(analytics.router, prefix="/api", tags=["Analytics"])
 app.include_router(playlists.router, tags=["Playlists"])
 
 @app.get("/")
