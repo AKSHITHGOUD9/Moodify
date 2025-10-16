@@ -58,10 +58,25 @@ Watch these videos to see Moodify in action:
 - Hugging Face API Key (optional)
 
 ### 1. Clone the Repository
+
+**Option A: Quick Clone (Recommended for Development)**
 ```bash
+# Clone without demo files (faster, smaller download)
+git clone --filter=blob:none --sparse https://github.com/AKSHITHGOUD9/Moodify.git
+cd Moodify
+git sparse-checkout set --no-cone '/*' '!demos'
+```
+
+**Option B: Full Clone (Includes Demo Files)**
+```bash
+# Clone with all files including demo GIFs
 git clone https://github.com/AKSHITHGOUD9/Moodify.git
 cd Moodify
+git lfs install  # Install Git LFS for large files
+git lfs pull     # Download demo files
 ```
+
+> 💡 **Tip**: Use Option A for faster setup. Demo files are only needed for viewing demo videos. See [CLONE_OPTIONS.md](CLONE_OPTIONS.md) for more details.
 
 ### 2. Backend Setup
 
