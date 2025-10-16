@@ -43,13 +43,24 @@ app.include_router(recommendations.router, tags=["Recommendations"])
 app.include_router(analytics.router, prefix="/api", tags=["Analytics"])
 app.include_router(playlists.router, tags=["Playlists"])
 
+# Debug: Log registered routes
+logger.info("Registered analytics routes with /api prefix")
+for route in analytics.router.routes:
+    logger.info(f"Analytics route: {route.methods} {route.path}")
+
 @app.get("/")
 async def root():
     return {"message": "Moodify API is running", "version": "1.0.0"}
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "env_vars_updated": True, "latest_commit": "1925e49"}
+    return {
+        "status": "healthy", 
+        "env_vars_updated": True, 
+        "latest_commit": "05f2560",
+        "analytics_routes": ["/api/top-tracks", "/api/my-playlists", "/api/album-covers"],
+        "build_timestamp": "2025-01-16T01:20:00Z"
+    }
 
 if __name__ == "__main__":
     import uvicorn
