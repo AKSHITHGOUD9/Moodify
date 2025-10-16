@@ -20,6 +20,7 @@ const API = import.meta.env.VITE_BACKEND_URL;
  * - Efficient DOM updates
  */
 const AlbumCoverGrid = () => {
+  console.log("AlbumCoverGrid: Component rendering");
   const [albumCovers, setAlbumCovers] = useState([]);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [tilePositions, setTilePositions] = useState([]);
@@ -148,6 +149,8 @@ const AlbumCoverGrid = () => {
     return () => clearTimeout(timer);
   }, [albumCovers]); 
 
+  console.log("AlbumCoverGrid: Rendering grid with", albumCovers.length, "covers");
+  
   return (
     <div className="album-grid-container">
       {/* Dark background overlay */}
